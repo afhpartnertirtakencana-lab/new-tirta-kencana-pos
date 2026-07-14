@@ -3370,30 +3370,13 @@
     // Di iOS/desktop tidak ada cara resmi memaksa salah satu - OS/browser yang
     // menentukan aplikasi mana yang buka link wa.me, jadi di luar Android
     // tombol pilihan tetap tampil tapi hasilnya sama (link wa.me standar).
+    // [DISEDERHANAKAN] Sempat dicoba kasih pilihan WhatsApp Biasa/Business, tapi
+    // paksa-buka WhatsApp Business lewat Android Intent tidak konsisten jalan di
+    // device kamu (kalau WA Business tidak terinstall / app dijalankan sebagai
+    // PWA terinstall, intent:// bisa gagal diam-diam) - jadi atas konfirmasimu,
+    // disederhanakan lagi: langsung ke WhatsApp Biasa, tanpa dialog pilihan.
     function kirimKeWhatsApp(text) {
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      const encoded = encodeURIComponent(text);
-      const bukaBiasa = () => window.open('https://wa.me/?text=' + encoded, '_blank');
-      const bukaBusiness = () => {
-        if (isAndroid) {
-          window.location.href = 'intent://send?text=' + encoded + '#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end';
-        } else {
-          bukaBiasa(); // tidak ada cara resmi paksa WA Business di iOS/desktop
-        }
-      };
-      Swal.fire({
-        title: 'Kirim lewat WhatsApp mana?',
-        icon: 'question',
-        showDenyButton: true,
-        showCancelButton: true,
-        confirmButtonText: '💬 WhatsApp Biasa',
-        denyButtonText: '💼 WhatsApp Business',
-        cancelButtonText: 'Batal',
-        reverseButtons: true
-      }).then(r => {
-        if (r.isConfirmed) bukaBiasa();
-        else if (r.isDenied) bukaBusiness();
-      });
+      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
     }
     function localDateStr(d) { const dt = d||new Date(); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 
