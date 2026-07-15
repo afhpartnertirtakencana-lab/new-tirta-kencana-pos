@@ -13,7 +13,7 @@
   
 
     // ==================== KONSTANTA DAN GLOBAL ====================
-    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbybb71uEPTwNBMjGl0tgDZcR99z5RbN2CVyl5QpF850WsSiNOHu2fjK9ANFXQ-Qju0YuQ/exec';
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwdPgjTCISgyyaT8DSfPs14jUNCb8rSjzX7W8MoVHq_pbkdoNAMD-3lgBBJI-L57NWkSQ/exec';
     let GAS_URL = localStorage.getItem('tirtaGasUrl') || DEFAULT_GAS_URL;
     const EMBEDDED_LOGO = "https://www.image2url.com/r2/default/images/1781919958885-4a0fd859-0e6f-4e9f-9370-702fbf72864f.jpg"; // [NEW] Logo Tirta Kencana 200x200, tertanam agar langsung muncul tanpa upload manual
     const EMBEDDED_QRIS = "https://www.image2url.com/r2/default/images/1781920179544-5e92dd0f-d0fa-482c-afc2-88259a5d3000.jpg"; // [UPDATED] QRIS asli, tertanam agar langsung muncul tanpa upload manual
@@ -923,13 +923,102 @@
             <span id="fotoKirimanStatus" style="font-size:0.7rem;color:var(--text3);margin-left:auto"></span>
           </div>
         </div>
-        <div style="display:flex;gap:8px"><button class="btn btn-secondary" style="flex:1" onclick="resetTrx()">Reset</button><button class="btn btn-primary" style="flex:2" id="btnSubmitTrx" onclick="submitTrx()">💾 Simpan & Struk</button></div></div>`;
+        <div style="display:flex;gap:8px"><button class="btn btn-secondary" style="flex:1" onclick="resetTrx()">Reset</button><div class="slide-confirm" id="slideConfirmTrx" style="flex:2"><div class="slide-confirm-fill" id="slideConfirmFill"></div><div class="slide-confirm-text" id="slideConfirmText">💾 Geser untuk Simpan &amp; Struk</div><div class="slide-confirm-thumb" id="slideConfirmThumb"><i class="fas fa-chevron-right"></i></div></div></div></div>`;
       _itemIdx = 0;
       document.getElementById('trxTgl').value = localDateStr();
       document.getElementById('trxCust').value = ''; document.getElementById('trxDiscGlobal').value = '0'; document.getElementById('trxStatus').value = '';
       document.getElementById('itemsContainer').innerHTML = ''; addItemRow();
       const _bk = document.getElementById('biayaKet'); if (_bk) _bk.value = '';
       const _bj = document.getElementById('biayaJml'); if (_bj) _bj.value = '0';
+      initSlideConfirm('slideConfirmTrx', async () => {
+        try { await submitTrx(); }
+        finally { const el = document.getElementById('slideConfirmTrx'); if (el && el._slideReset) el._slideReset(); }
+      });
+    }
+
+    // ========== SLIDE-TO-CONFIRM (generik, bisa dipakai di tombol lain) ==========
+    // Menggantikan tombol tap biasa dengan slider "geser untuk konfirmasi" gaya
+    // "slide to unlock" HP - mencegah submit transaksi tidak sengaja karena
+    // salah pencet/tersenggol. Dipakai untuk "Simpan & Struk" di form Jual.
+    (function ensureSlideConfirmStyles() {
+      if (document.getElementById('slideConfirmStyles')) return;
+      const style = document.createElement('style');
+      style.id = 'slideConfirmStyles';
+      style.textContent = `
+        .slide-confirm{position:relative;height:46px;border-radius:23px;background:var(--biru-muda,#e8f2fb);border:1px solid var(--border,#d7e6f2);overflow:hidden;touch-action:none;user-select:none;}
+        .slide-confirm-fill{position:absolute;top:0;left:0;height:100%;width:46px;background:linear-gradient(135deg,var(--biru,#1A6DB5),#2B8FDE);border-radius:23px;pointer-events:none;}
+        .slide-confirm-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;color:var(--biru,#1A6DB5);pointer-events:none;letter-spacing:.2px;white-space:nowrap;padding:0 50px 0 46px;}
+        .slide-confirm-thumb{position:absolute;top:3px;left:3px;width:40px;height:40px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;color:var(--biru,#1A6DB5);font-size:16px;cursor:grab;touch-action:none;z-index:2;}
+        .slide-confirm.dragging .slide-confirm-thumb{cursor:grabbing;}
+        .slide-confirm.confirmed .slide-confirm-fill{background:linear-gradient(135deg,#16A34A,#22C55E);}
+        .slide-confirm.confirmed .slide-confirm-thumb{color:#16A34A;}
+        @keyframes slideConfirmHint{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+        .slide-confirm:not(.dragging):not(.confirmed) .slide-confirm-thumb i{display:inline-block;animation:slideConfirmHint 1.4s ease-in-out infinite;}
+      `;
+      document.head.appendChild(style);
+    })();
+
+    function initSlideConfirm(containerId, onConfirm) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+      const thumb = el.querySelector('.slide-confirm-thumb');
+      const fill = el.querySelector('.slide-confirm-fill');
+      const text = el.querySelector('.slide-confirm-text');
+      let startX = 0, thumbX = 0, dragging = false, confirmed = false;
+      function maxX() { return Math.max(0, el.offsetWidth - thumb.offsetWidth - 6); }
+      function apply(x) {
+        const mx = maxX();
+        x = Math.max(0, Math.min(x, mx));
+        thumbX = x;
+        thumb.style.transform = 'translateX(' + x + 'px)';
+        fill.style.width = (x + thumb.offsetWidth) + 'px';
+        text.style.opacity = mx > 0 ? Math.max(0, 1 - (x / mx) * 1.5) : 1;
+        return x;
+      }
+      function reset() {
+        confirmed = false;
+        el.classList.remove('confirmed');
+        thumb.style.transition = 'transform .25s ease';
+        fill.style.transition = 'width .25s ease';
+        text.style.transition = 'opacity .25s ease';
+        thumb.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        apply(0);
+        setTimeout(() => { thumb.style.transition = ''; fill.style.transition = ''; text.style.transition = ''; }, 260);
+      }
+      el._slideReset = reset;
+      thumb.addEventListener('pointerdown', (e) => {
+        if (confirmed) return;
+        dragging = true;
+        startX = e.clientX - thumbX;
+        thumb.style.transition = ''; fill.style.transition = ''; text.style.transition = '';
+        try { thumb.setPointerCapture(e.pointerId); } catch (err) {}
+        el.classList.add('dragging');
+      });
+      thumb.addEventListener('pointermove', (e) => {
+        if (!dragging || confirmed) return;
+        apply(e.clientX - startX);
+      });
+      function endDrag() {
+        if (!dragging || confirmed) return;
+        dragging = false;
+        el.classList.remove('dragging');
+        const mx = maxX();
+        const threshold = mx * 0.82;
+        if (mx > 0 && thumbX >= threshold) {
+          confirmed = true;
+          thumb.style.transition = 'transform .15s ease';
+          fill.style.transition = 'width .15s ease';
+          text.style.transition = 'opacity .15s ease';
+          apply(mx);
+          el.classList.add('confirmed');
+          thumb.innerHTML = '<i class="fas fa-check"></i>';
+          setTimeout(() => onConfirm(), 180);
+        } else {
+          reset();
+        }
+      }
+      thumb.addEventListener('pointerup', endDrag);
+      thumb.addEventListener('pointercancel', endDrag);
     }
 
     function addItemRow(skuVal) {
