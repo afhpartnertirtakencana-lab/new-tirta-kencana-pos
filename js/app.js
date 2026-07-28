@@ -245,7 +245,7 @@
     let allUsers = [
       { name:'admin', role:'admin' },
       { name:'hasan', role:'sales' },
-      { name:'ujang', role:'sales' },
+      { name:'edi', role:'sales' },
       { name:'oji', role:'driver' },
       { name:'padong', role:'driver' },
       { name:'said', role:'driver' },
@@ -515,7 +515,7 @@
       if (allUsers.length === 0) allUsers = [
         { name:'admin', role:'admin' },
         { name:'hasan', role:'sales' },
-        { name:'ujang', role:'sales' },
+        { name:'edi', role:'sales' },
         { name:'oji', role:'driver' },
         { name:'padong', role:'driver' },
         { name:'said', role:'driver' },
@@ -525,7 +525,7 @@
       const _masterUsers = [
         { name:'admin', role:'admin' },
         { name:'hasan', role:'sales' },
-        { name:'ujang', role:'sales' },
+        { name:'edi', role:'sales' },
         { name:'oji', role:'driver' },
         { name:'padong', role:'driver' },
         { name:'said', role:'driver' },
@@ -599,7 +599,7 @@
         const _syncBuiltin = [
           { name:'admin', role:'admin' },
           { name:'hasan', role:'sales' },
-          { name:'ujang', role:'sales' },
+          { name:'edi', role:'sales' },
           { name:'oji', role:'driver' },
           { name:'padong', role:'driver' },
           { name:'said', role:'driver' },
@@ -689,7 +689,7 @@
         allUsers = [
           { name:'admin', role:'admin' },
           { name:'hasan', role:'sales' },
-          { name:'ujang', role:'sales' },
+          { name:'edi', role:'sales' },
           { name:'oji', role:'driver' },
           { name:'padong', role:'driver' },
           { name:'said', role:'driver' },
@@ -3802,7 +3802,7 @@ if ('serviceWorker' in navigator) {
       allUsers = [
         { name:'admin', role:'admin' },
         { name:'hasan', role:'sales' },
-        { name:'ujang', role:'sales' },
+        { name:'edi', role:'sales' },
         { name:'oji', role:'driver' },
         { name:'padong', role:'driver' },
         { name:'said', role:'driver' },
