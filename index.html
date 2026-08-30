@@ -44,7 +44,14 @@
        melebihi 1024px, jadi kalau breakpoint cuma 1024px tampilan HP tidak
        kepakai saat tablet diputar ke landscape. 1366px mencakup hampir semua
        tablet di kedua orientasi; laptop/desktop asli baru mulai di atas ini. */
-    @media (max-width: 1366px) {
+    /* [CHANGED] Ditambah kondisi "(pointer: coarse)" (OR) - deteksi lebar layar
+       SENDIRIAN tidak cukup andal untuk tablet: saat diputar landscape, lebarnya
+       bisa melebihi batas berapa pun kita set (tablet besar landscape bisa >1366px).
+       "pointer: coarse" mendeteksi device dengan input sentuh sebagai input utama
+       (HP & tablet, di kedua orientasi) - jadi walau lebarnya besar saat landscape,
+       tetap kena rule ini selama devicenya layar sentuh. Laptop/PC bermouse (pointer:
+       fine) baru dianggap "desktop asli" walau browsernya dilebar-sempitkan. */
+    @media (max-width: 1366px), (pointer: coarse) {
       .header { padding-bottom: 8px !important; }
       .header .logo-header { width: 52px !important; height: 52px !important; }
       .header .logo-header img { width: 62px !important; height: 62px !important; }
@@ -76,21 +83,11 @@
       .header-datetime { display: flex !important; margin-left: auto !important; }
 
       .nav-bar .user-info { display: none !important; }
-      .menu-tabs-wrap { display: none !important; }
 
       /* [FIX] Perkecil jarak vertikal antara sapaan "Hello" -> baris ikon -> kartu
          ringkasan, supaya lebih rapat/ringkas seperti diminta. */
       .mobile-greeting { display: block !important; padding: 1px 16px 1px !important; }
       .nav-bar { justify-content: center !important; padding: 2px 14px !important; }
-      .bottom-nav-mobile { display: flex !important; }
-      /* [FIX] Sebelumnya cuma .bottom-nav-mobile yang di-override displaynya di
-         media query ini - sheet "Lainnya" & backdrop-nya TIDAK PERNAH di-override
-         dari display:none bawaan di style.css, jadi walau class "open" ditambahkan
-         lewat JS (toggleBnavMore), sheetnya tidak akan pernah kelihatan karena
-         "display:none" menang telak atas "transform". Ditambahkan di sini. */
-      .bottom-nav-more-sheet { display: block !important; }
-      .bnav-more-backdrop.open { display: block !important; }
-      .content-area { padding-bottom: 88px !important; }
 
       /* [NEW] "Freeze" kartu ringkasan (Total Penjualan & Total Piutang) di dashboard
          - dibuat sticky nempel di atas #contentArea, supaya pas Quick Actions/Menu
@@ -100,7 +97,7 @@
       .dash-cards-row {
         position: sticky !important; top: 0 !important; z-index: 15 !important;
         background: var(--bg2) !important;
-        margin: -12px -12px 8px !important; padding: 3px 12px 4px !important;
+        margin: -12px -12px 18px !important; padding: 3px 12px 4px !important;
         box-shadow: 0 8px 16px -4px rgba(0,0,0,0.35) !important;
       }
       body.light-mode .dash-cards-row { background: #F6F9FF !important; }
@@ -133,7 +130,11 @@
        supaya tidak makan tempat terlalu banyak di layar lebar. Sama polanya dengan
        aturan mobile di atas, cuma faktor skalanya beda & breakpoint-nya kebalikannya
        (berlaku mulai layar yang LEBIH LEBAR dari batas mobile). */
-    @media (min-width: 1367px) {
+    /* [CHANGED] Sekarang butuh DUA syarat sekaligus (AND) - lebar di atas batas
+       DAN pointer:fine (mouse) - supaya tablet lebar dalam mode landscape (yang
+       "pointer"-nya coarse/sentuh) tidak ikut kena aturan desktop-asli ini,
+       meski lebarnya kebetulan di atas 1366px. */
+    @media (min-width: 1367px) and (pointer: fine) {
       .header { padding-bottom: 17px !important; }
       .header .logo-header { width: 69px !important; height: 69px !important; }
       .header .logo-header img { width: 84px !important; height: 84px !important; }

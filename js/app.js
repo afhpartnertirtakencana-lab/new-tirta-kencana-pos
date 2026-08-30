@@ -1193,7 +1193,7 @@
       // (Jual, Input, dst) sudah bisa diakses lewat menu bawah (mobile/tablet) atau
       // tab menu (desktop), jadi tidak perlu duplikasi di sini.
 
-      h += `<div style="font-weight:700;font-size:0.9rem;color:var(--biru);margin-bottom:12px;">📌 Menu Utama</div>`;
+      h += `<div style="font-weight:700;font-size:0.9rem;color:var(--biru);margin:4px 0 12px;">📌 Menu Utama</div>`;
 
       if (role === 'admin') {
         h += `<div class="menu-row-title">👑 Admin</div>`;
