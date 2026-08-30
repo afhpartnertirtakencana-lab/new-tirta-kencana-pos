@@ -185,13 +185,11 @@
        tidak bergantung pada gesture swipe/drag yang di sebagian tablet tidak terdeteksi
        browser-nya. Klik/tap tombol selalu berfungsi di semua device. Murni tambahan
        (wrapper + 2 tombol baru), #menuTabs & isinya dari renderMenuTabs() tidak diubah. */
-    /* [CHANGED] Tab menu yang bisa digeser ini sekarang disembunyikan PERMANEN di
-       semua ukuran layar (bukan cuma HP/tablet lagi) - navigasi utama sepenuhnya
-       pindah ke menu bawah (.bottom-nav-mobile, lihat di bawah), termasuk untuk
-       PC/laptop, sesuai permintaan. Kode #menuTabs & renderMenuTabs() di app.js
-       tetap ada apa adanya (tidak dihapus) supaya tidak berisiko merusak logika
-       lain yang bergantung padanya - cuma tampilannya yang dimatikan total. */
-    .menu-tabs-wrap { display:none !important; }
+    /* [REVERTED] Bottom nav dihapus (lihat komentar di .bottom-nav-mobile) - tab
+       menu ini dikembalikan jadi navigasi utama seperti semula, di semua ukuran
+       layar. Tombol panah kiri/kanan di bawah tetap dipakai supaya tetap mudah
+       digeser di tablet yang gesture swipe-nya kadang tidak terdeteksi. */
+    .menu-tabs-wrap { position:relative; display:flex; align-items:stretch; }
     .menu-tabs-wrap .menu-tabs { flex:1; min-width:0; }
     .menu-tabs-arrow {
       flex:0 0 auto; width:24px; border:none; cursor:pointer; z-index:2;
@@ -235,10 +233,7 @@
       color:white; border-color:transparent;
       box-shadow: 0 4px 12px rgba(0,80,158,0.4), var(--glow);
     }
-    /* [CHANGED] padding-bottom permanen (bukan cuma di media query mobile lagi) -
-       menu bawah sekarang tampil di SEMUA ukuran layar (lihat .bottom-nav-mobile),
-       jadi konten harus selalu punya ruang supaya tidak ketutupan di layar manapun. */
-    .content-area { flex:1; padding:12px 12px 88px; overflow-y:auto; min-height:0; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+    .content-area { flex:1; padding:12px; overflow-y:auto; min-height:0; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
 
     /* ── [NEW] Sapaan mobile "Hello, {nama}" ──
        Disembunyikan by default (tablet/web tetap pakai header lama apa adanya);
@@ -257,16 +252,13 @@
     body.light-mode .mobile-greeting { color:var(--text2); }
     body.light-mode .mobile-greeting #mobileGreetName { color:var(--biru); }
 
-    /* ── [CHANGED] Menu bawah (bottom nav) - sekarang tampil di SEMUA ukuran layar ──
-       Awalnya cuma untuk HP, lalu tablet, sekarang PC/laptop juga - menu tab yang
-       bisa digeser (.menu-tabs-wrap) dihilangkan total, digantikan bar ini di mana
-       pun. Diisi lewat renderBottomNav() di app.js sesuai role user (admin/sales/
-       driver) - lihat BOTTOM_NAV_CONFIG. Warna/gaya konsisten dengan nav-bar
-       (biru gelap glassmorphism) supaya menyatu dengan tema, dan TIDAK berubah
-       warna di light-mode (sama seperti header - lihat komentar di header CSS),
-       supaya kontras ikon tetap terjaga di kedua mode. */
+    /* ── Menu bawah (bottom nav) - khusus TIER "KOMPAK" (HP & tablet potret kecil) ──
+       Ditampilkan/disembunyikan lewat 2 media query di index.html (bukan di sini),
+       supaya satu tempat saja yang mengatur kapan tier kompak vs tier lebar aktif.
+       Di tier lebar (tablet landscape/PC/laptop), navigasi pakai toolbar ikon hasil
+       restyle .menu-tabs-wrap, bukan bar ini - lihat index.html. */
     .bottom-nav-mobile {
-      display:flex; position:fixed; left:0; right:0; bottom:0; z-index:60;
+      display:none; position:fixed; left:0; right:0; bottom:0; z-index:60;
       max-width:500px; margin:0 auto;
       background:rgba(0,20,45,0.94);
       backdrop-filter:blur(16px) saturate(1.3); -webkit-backdrop-filter:blur(16px) saturate(1.3);
@@ -307,7 +299,7 @@
     }
     .bnav-more-backdrop.open { display:block; opacity:1; }
     .bottom-nav-more-sheet {
-      display:block; position:fixed; left:0; right:0; bottom:0; z-index:64;
+      display:none; position:fixed; left:0; right:0; bottom:0; z-index:64;
       max-width:500px; margin:0 auto;
       background:var(--surface2); border-top-left-radius:18px; border-top-right-radius:18px;
       border:1px solid var(--glass-border); border-bottom:none;
@@ -317,10 +309,10 @@
       transform:translateY(100%); transition:transform 0.25s ease;
       pointer-events:none;
     }
-    /* [FIX] Base rule menaruh sheet-nya tetap "ada" (display:block) tapi digeser
-       keluar layar (translateY 100%) supaya transisi slide-up mulus - pointer-
-       events dimatikan saat tersembunyi biar tidak menghalangi klik ke konten di
-       belakangnya, dan dinyalakan lagi saat .open. */
+    /* Base rule menaruh sheet-nya tetap "ada" (display ditentukan tier aktif di
+       index.html) tapi digeser keluar layar (translateY 100%) supaya transisi
+       slide-up mulus - pointer-events dimatikan saat tersembunyi biar tidak
+       menghalangi klik ke konten di belakangnya, dinyalakan lagi saat .open. */
     .bottom-nav-more-sheet.open { transform:translateY(0); pointer-events:auto; }
     .bnav-more-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-weight:700; color:var(--text); font-size:0.9rem; }
     .bnav-more-close { background:none; border:none; color:var(--text3); font-size:1rem; cursor:pointer; padding:4px 8px; }
