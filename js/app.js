@@ -1014,7 +1014,7 @@
         h = `<button class="tab ${currentPage==='dashboard'?'active':''}" onclick="navigateTo('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</button>
              <button class="tab ${currentPage==='inputbarang'?'active':''}" onclick="navigateTo('inputbarang')"><i class="fas fa-boxes"></i> Input</button>
              <button class="tab ${currentPage==='rekapinput'?'active':''}" onclick="navigateTo('rekapinput')"><i class="fas fa-boxes"></i> Rekap Input</button>
-             <button class="tab ${currentPage==='cekkosongan'?'active':''}" onclick="navigateTo('cekkosongan')"><i class="fas fa-recycle"></i> Cek Kosongan</button>
+             <button class="tab ${currentPage==='pesanan'?'active':''}" onclick="navigateTo('pesanan')"><i class="fas fa-eye"></i> Pesanan</button>
              <button class="tab ${currentPage==='pengaturanUser'?'active':''}" onclick="navigateTo('pengaturanUser')"><i class="fas fa-cog"></i> Atur</button>`;
       }
       document.getElementById('menuTabs').innerHTML = h;
