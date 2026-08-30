@@ -35,7 +35,11 @@
        logo, jarak antar elemen, dan padding semua diperkecil. Pakai !important supaya
        menang dari inline style yang sudah ada di elemen headernya (khusus di lebar
        layar HP saja - versi tablet/web/desktop tidak berubah). */
-    @media (max-width: 600px) {
+    /* [CHANGED] Breakpoint dinaikkan dari 600px ke 1024px supaya tampilan mobile
+       (header ringkas, menu bawah/bottom-nav, kartu ringkasan freeze, dst) juga
+       berlaku di tablet, bukan cuma HP. Layar di atas 1024px (desktop/laptop)
+       tetap pakai header & tab-menu lama seperti sebelumnya. */
+    @media (max-width: 1024px) {
       .header { padding-bottom: 8px !important; }
       .header .logo-header { width: 52px !important; height: 52px !important; }
       .header .logo-header img { width: 62px !important; height: 62px !important; }
@@ -124,7 +128,7 @@
        supaya tidak makan tempat terlalu banyak di layar lebar. Sama polanya dengan
        aturan mobile di atas, cuma faktor skalanya beda & breakpoint-nya kebalikannya
        (berlaku mulai layar yang LEBIH LEBAR dari batas mobile). */
-    @media (min-width: 601px) {
+    @media (min-width: 1025px) {
       .header { padding-bottom: 17px !important; }
       .header .logo-header { width: 69px !important; height: 69px !important; }
       .header .logo-header img { width: 84px !important; height: 84px !important; }

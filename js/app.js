@@ -1189,21 +1189,9 @@
         `;
       }
 
-      // [NEW] Quick Actions
-      h += `<div style="font-weight:700;font-size:0.9rem;color:var(--biru);margin:16px 0 12px 0;">⚡ Quick Actions</div>`;
-      h += `<div class="menu-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">`;
-      if (role === 'admin' || role === 'sales') {
-        h += `<div class="action-card" onclick="navigateTo('penjualan');document.getElementById('trxCustomer').focus();" style="padding:12px 8px;"><i class="fas fa-cash-register" style="font-size:20px;color:var(--biru);"></i><div style="font-size:11px;font-weight:600;margin-top:6px;">Jual Cepat</div></div>`;
-        h += `<div class="action-card" onclick="openScanner('trx');" style="padding:12px 8px;"><i class="fas fa-barcode" style="font-size:20px;color:var(--teal);"></i><div style="font-size:11px;font-weight:600;margin-top:6px;">Scan</div></div>`;
-      }
-      if (role === 'admin') {
-        h += `<div class="action-card" onclick="navigateTo('produk');openProdukForm(-1);" style="padding:12px 8px;"><i class="fas fa-plus-circle" style="font-size:20px;color:var(--hijau);"></i><div style="font-size:11px;font-weight:600;margin-top:6px;">+ Produk</div></div>`;
-        h += `<div class="action-card" onclick="navigateTo('inputbarang');" style="padding:12px 8px;"><i class="fas fa-boxes" style="font-size:20px;color:var(--kuning);"></i><div style="font-size:11px;font-weight:600;margin-top:6px;">Input</div></div>`;
-      } else if (role === 'driver') {
-        h += `<div class="action-card" onclick="navigateTo('inputbarang');" style="padding:12px 8px;"><i class="fas fa-boxes" style="font-size:20px;color:var(--kuning);"></i><div style="font-size:11px;font-weight:600;margin-top:6px;">Input</div></div>`;
-        h += `<div class="action-card" onclick="openScanner('stock');" style="padding:12px 8px;"><i class="fas fa-barcode" style="font-size:20px;color:var(--teal);"></i><div style="font-size:11px;font-weight:600;margin-top:6px;">Scan</div></div>`;
-      }
-      h += `</div>`;
+      // [REMOVED] Quick Actions dihapus dari dashboard atas permintaan - aksi cepat
+      // (Jual, Input, dst) sudah bisa diakses lewat menu bawah (mobile/tablet) atau
+      // tab menu (desktop), jadi tidak perlu duplikasi di sini.
 
       h += `<div style="font-weight:700;font-size:0.9rem;color:var(--biru);margin-bottom:12px;">📌 Menu Utama</div>`;
 
