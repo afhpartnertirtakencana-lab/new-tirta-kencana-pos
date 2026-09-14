@@ -247,61 +247,6 @@
       window.addEventListener('online', () => { console.log('Koneksi kembali online, proses antrian sync...'); processSyncQueue(); });
       setInterval(() => { if (_syncQueue.length > 0) processSyncQueue(); }, 25000);
     }
-    // [NEW] Dashboard Kesehatan Sync - supaya kalau ada masalah sync (sering
-    // terjadi sepanjang pengembangan app ini: rollover stok, item transaksi
-    // hilang, dsb), admin bisa cek sendiri kondisinya tanpa harus lapor dulu:
-    // kapan terakhir berhasil sync, ada berapa yang masih mengantre, dan
-    // jumlah data yang tersimpan lokal di device ini per jenis data.
-    function showSyncHealthDashboard() {
-      const lastOK = parseInt(localStorage.getItem('tirtaLastSyncOK')) || 0;
-      const lastErrRaw = localStorage.getItem('tirtaLastSyncError');
-      let lastErr = null; try { lastErr = lastErrRaw ? JSON.parse(lastErrRaw) : null; } catch(e) {}
-      const fmtRelative = (ts) => {
-        if (!ts) return 'Belum pernah';
-        const diffMin = Math.round((Date.now() - ts) / 60000);
-        if (diffMin < 1) return 'Baru saja';
-        if (diffMin < 60) return diffMin + ' menit lalu';
-        const diffJam = Math.round(diffMin / 60);
-        if (diffJam < 24) return diffJam + ' jam lalu';
-        return Math.round(diffJam / 24) + ' hari lalu';
-      };
-      const queueOk = _syncQueue.length === 0;
-      const dataRows = [
-        { label: 'Transaksi', count: allTrxList.length },
-        { label: 'Produk', count: products.length },
-        { label: 'Pelanggan', count: allCustomers.length },
-        { label: 'Input Barang', count: stockInHistory.length },
-        { label: 'Setoran', count: setoranHistory.length },
-      ];
-      const html = `<div style="text-align:left">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-          <div style="background:${queueOk?'#EEF9F2':'#FEF3E2'};border-radius:12px;padding:10px 12px">
-            <div style="font-size:0.68rem;color:#5a7a90">Status Antrian</div>
-            <div style="font-weight:800;font-size:1rem;color:${queueOk?'#16A34A':'#D97706'}">${queueOk ? '✓ Tersinkron' : _syncQueue.length + ' menunggu'}</div>
-          </div>
-          <div style="background:${lastErr?'#FEECEC':'#F4F8FB'};border-radius:12px;padding:10px 12px">
-            <div style="font-size:0.68rem;color:#5a7a90">Sync Berhasil Terakhir</div>
-            <div style="font-weight:800;font-size:0.9rem;color:${lastErr?'#DC2626':'#0D2B3E'}">${esc(fmtRelative(lastOK))}</div>
-          </div>
-        </div>
-        ${lastErr ? `<div style="background:#FEECEC;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.72rem;color:#DC2626"><b>⚠️ Percobaan sync terakhir gagal</b> (${esc(fmtRelative(lastErr.time))}): ${esc(lastErr.message||'-')}</div>` : ''}
-        <div style="font-weight:700;font-size:0.8rem;color:#0D2B3E;margin-bottom:6px">Jumlah Data Tersimpan di Device Ini</div>
-        <div style="border:1px solid #EEF4F9;border-radius:10px;overflow:hidden;margin-bottom:14px">
-          ${dataRows.map(r => `<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #F1F5F9;font-size:0.78rem"><span style="color:#5a7a90">${esc(r.label)}</span><span style="font-weight:700;color:#0D2B3E;font-family:monospace">${r.count}</span></div>`).join('')}
-        </div>
-        <p style="font-size:0.68rem;color:#94A3B8">Antrian otomatis dicoba lagi tiap ±25 detik & saat internet nyambung. Data yang belum sync AMAN tersimpan di HP ini.</p>
-      </div>`;
-      Swal.fire({
-        title: '🩺 Kesehatan Sync', html, width: '460px', background: '#F4F8FB',
-        showConfirmButton: true, confirmButtonText: 'Tutup',
-        showDenyButton: !queueOk, denyButtonText: 'Lihat Detail Antrian',
-        showCancelButton: true, cancelButtonText: '🔄 Sync Sekarang',
-        customClass: { popup: 'dash-status-popup' }
-      }).then(r => {
-        if (r.isDenied) showSyncQueueDetail();
-        else if (r.dismiss === Swal.DismissReason.cancel) syncFromGAS();
-      });
-    }
     // berlaku / tidak valid). Paksa kembali ke halaman login dengan pesan jelas,
     // supaya tidak muncul error generik berulang-ulang di seluruh menu.
     let _reloginTriggered = false;
@@ -600,35 +545,11 @@
     }
     // Dipanggil sekali dari halaman Pengaturan (admin/sales/driver) setelah HTML-nya
     // dirender, supaya kedua tombol (biometrik & pola) langsung terisi status yang benar.
-    function initKeamananSectionUI() {
-      renderBioSettingUI(); renderPatternSettingUI();
-      const sel = document.getElementById('autoLockSelect');
-      if (sel) sel.value = String(getAutoLockMinutes());
-    }
+    function initKeamananSectionUI() { renderBioSettingUI(); renderPatternSettingUI(); }
 
     // Lock-screen pola (dipanggil saat app dibuka & kunci pola aktif) - beda dari
     // modal setup di atas: ini LANGSUNG cek kecocokan hash & LOOPING kalau salah
     // (tidak menutup diri sendiri sampai benar atau user pilih "Gunakan Password").
-    // [NEW] Proteksi percobaan gagal - sebelumnya pola bisa dicoba BERKALI-KALI
-    // TANPA BATAS kalau salah terus (beda dengan biometrik yang dibatasi sistem
-    // OS). Sekarang setiap 5x salah berturut-turut, ada jeda yang makin lama
-    // (30d -> 60d -> 120d -> ... maks 5 menit) sebelum bisa coba lagi. Disimpan
-    // di localStorage (bukan variabel biasa) supaya tidak bisa di-reset cuma
-    // dengan menutup-buka app lagi.
-    const PATTERN_FAIL_KEY = 'tirtaPatternFailCount';
-    const PATTERN_LOCK_UNTIL_KEY = 'tirtaPatternLockUntil';
-    function _getPatternFailCount() { return parseInt(localStorage.getItem(PATTERN_FAIL_KEY)) || 0; }
-    function _getPatternLockUntil() { return parseInt(localStorage.getItem(PATTERN_LOCK_UNTIL_KEY)) || 0; }
-    function _registerPatternFail() {
-      const count = _getPatternFailCount() + 1;
-      localStorage.setItem(PATTERN_FAIL_KEY, String(count));
-      if (count % 5 === 0) {
-        const stage = Math.min(count / 5, 5); // maks di kelipatan ke-5 (5 menit)
-        const lockSeconds = Math.min(30 * Math.pow(2, stage - 1), 300);
-        localStorage.setItem(PATTERN_LOCK_UNTIL_KEY, String(Date.now() + lockSeconds * 1000));
-      }
-    }
-    function _resetPatternFail() { localStorage.removeItem(PATTERN_FAIL_KEY); localStorage.removeItem(PATTERN_LOCK_UNTIL_KEY); }
     async function showPatternLockScreen() {
       document.getElementById('loginPage').classList.add('hidden');
       document.getElementById('mainApp').classList.add('hidden');
@@ -647,74 +568,13 @@
       modal.querySelector('#pgw2').innerHTML = _patternGridSvgHtml();
       const svg = modal.querySelector('#patternSvg');
       const hintEl = modal.querySelector('#patternLockHint');
+      _wirePatternDrag(svg, async (seq) => {
+        if (seq.length < 4) return; // ketuk-lepas tidak sengaja, abaikan diam-diam
+        const drawnHash = await _sha256Hex(seq.join('-'));
+        if (drawnHash === hash) { modal.remove(); showMainApp(); }
+        else { hintEl.textContent = 'Pola salah, coba lagi'; hintEl.style.color = '#FF8A80'; setTimeout(() => { hintEl.style.color = '#9fc1e6'; hintEl.textContent = 'Hubungkan titik-titik sesuai pola Anda'; }, 1500); }
+      });
       modal.querySelector('#patternUsePasswordBtn').onclick = () => { modal.remove(); doLogout(); };
-      // [NEW] Kalau masih dalam masa jeda (lockout) dari percobaan gagal
-      // sebelumnya, tampilkan hitung mundur & matikan grid-nya dulu.
-      function checkLockoutAndMaybeWire() {
-        const lockUntil = _getPatternLockUntil();
-        const remaining = lockUntil - Date.now();
-        if (remaining > 0) {
-          svg.style.pointerEvents = 'none';
-          svg.style.opacity = '0.35';
-          const detik = Math.ceil(remaining / 1000);
-          hintEl.style.color = '#FF8A80';
-          hintEl.textContent = `Terlalu banyak percobaan salah. Coba lagi dalam ${detik} detik.`;
-          setTimeout(checkLockoutAndMaybeWire, 1000);
-          return;
-        }
-        svg.style.pointerEvents = 'auto';
-        svg.style.opacity = '1';
-        hintEl.style.color = '#9fc1e6';
-        hintEl.textContent = 'Hubungkan titik-titik sesuai pola Anda';
-        _wirePatternDrag(svg, async (seq) => {
-          if (seq.length < 4) return; // ketuk-lepas tidak sengaja, abaikan diam-diam
-          if (_getPatternLockUntil() > Date.now()) return; // jaga-jaga kalau sempat digambar pas jeda baru mulai
-          const drawnHash = await _sha256Hex(seq.join('-'));
-          if (drawnHash === hash) { _resetPatternFail(); modal.remove(); showMainApp(); }
-          else {
-            _registerPatternFail();
-            if (_getPatternLockUntil() > Date.now()) { checkLockoutAndMaybeWire(); return; }
-            hintEl.textContent = 'Pola salah, coba lagi'; hintEl.style.color = '#FF8A80';
-            setTimeout(() => { hintEl.style.color = '#9fc1e6'; hintEl.textContent = 'Hubungkan titik-titik sesuai pola Anda'; }, 1500);
-          }
-        });
-      }
-      checkLockoutAndMaybeWire();
-    }
-
-    // ========== [NEW] AUTO-KUNCI SETELAH TIDAK AKTIF ==========
-    // Sebelumnya Biometric Lock & Pattern Lock cuma aktif saat app PERTAMA
-    // dibuka - begitu sudah login, aplikasi tetap terbuka tanpa batas waktu.
-    // Kalau HP dipinjam/ditinggal orang lain saat masih login, siapapun bisa
-    // langsung akses data bisnis tanpa perlu buka ulang app. Sekarang ada timer
-    // tidak-aktif: kalau tidak ada interaksi (sentuh/klik/scroll/ketik) selama
-    // durasi yang dipilih, aplikasi otomatis terkunci lagi.
-    const AUTOLOCK_KEY = 'tirtaAutoLockMinutes';
-    function getAutoLockMinutes() { return parseInt(localStorage.getItem(AUTOLOCK_KEY)) || 0; } // 0 = mati
-    function setAutoLockMinutes(min) { localStorage.setItem(AUTOLOCK_KEY, String(min)); resetInactivityTimer(); }
-    let _inactivityTimer = null;
-    function resetInactivityTimer() {
-      if (_inactivityTimer) { clearTimeout(_inactivityTimer); _inactivityTimer = null; }
-      const minutes = getAutoLockMinutes();
-      const mainAppEl = document.getElementById('mainApp');
-      if (!minutes || !mainAppEl || mainAppEl.classList.contains('hidden')) return; // fitur mati, atau belum login/sedang di layar kunci lain
-      _inactivityTimer = setTimeout(triggerAutoLock, minutes * 60000);
-    }
-    function triggerAutoLock() {
-      const mainAppEl = document.getElementById('mainApp');
-      if (!mainAppEl || mainAppEl.classList.contains('hidden')) return; // jaga-jaga: jangan kunci kalau ternyata sudah tidak di halaman utama
-      // Prioritas: Biometrik dulu (paling cepat dibuka lagi), lalu Pattern Lock,
-      // dan kalau admin belum mengaktifkan keduanya, tetap paksa login ulang
-      // penuh (bukan dibiarkan diam-diam tetap terbuka) - auto-kunci harus
-      // benar-benar mengunci, bukan cuma percuma kalau tidak ada metode cepat.
-      if (localStorage.getItem('tirtaBioEnabled') === '1' && isBiometricSupported()) { showBioLockScreen(); }
-      else if (isPatternLockEnabled()) { showPatternLockScreen(); }
-      else { doLogout(); }
-    }
-    // Dipasang SEKALI per sesi (lihat guard di showMainApp()) - event listener
-    // pasif, tidak mengganggu performa, cukup me-reset timer tiap ada interaksi.
-    function initInactivityWatcher() {
-      ['mousedown','mousemove','keydown','touchstart','scroll'].forEach(evt => document.addEventListener(evt, resetInactivityTimer, { passive: true }));
     }
     let products = [], pelanggan = [], allTrxList = [], allCustomers = [], stockInHistory = [], setoranHistory = [];
     let drivers = ['oji','padong','said','dedi','zehpudin'];
@@ -1044,7 +904,6 @@
         ]);
         syncCustomerPhonesFromGAS(); // [NEW] tarik nomor WA pelanggan terbaru dari Sheets juga (tidak perlu ditunggu/di-await, biar tidak memperlambat sync utama)
         syncEditLogFromGAS(); // [NEW] tarik log edit terbaru dari semua device/admin juga
-        syncCustomerAddressesFromGAS(); // [NEW] tarik alamat pelanggan terbaru dari Sheets juga
         if (Array.isArray(prod)) products = prod;
         if (Array.isArray(cust)) { allCustomers = cust; pelanggan = cust.slice(); }
         if (Array.isArray(trx)) {
@@ -1128,12 +987,9 @@
           }
         }
         saveLocalData();
-        localStorage.setItem('tirtaLastSyncOK', String(Date.now())); // [NEW] dipakai Dashboard Kesehatan Sync
-        localStorage.removeItem('tirtaLastSyncError');
         if (currentPage === 'dashboard' || currentPage === 'transaksi' || currentPage === 'produk' || currentPage === 'gudang') renderContent();
       } catch (e) {
         console.warn('Gagal sinkron:', e);
-        localStorage.setItem('tirtaLastSyncError', JSON.stringify({ time: Date.now(), message: e.message || 'Gagal terhubung' })); // [NEW]
         Swal.fire({
           icon: 'error',
           title: 'Koneksi GAGAL',
@@ -1253,11 +1109,6 @@
       // supaya tidak numpuk kalau showMainApp() kepanggil berkali-kali).
       updateHeaderClock();
       if (!window._headerClockStarted) { window._headerClockStarted = true; setInterval(updateHeaderClock, 30000); }
-      // [NEW] Auto-kunci setelah tidak aktif - dipasang sekali per sesi (dijaga
-      // flag yang sama polanya dengan header clock di atas), lalu setiap kali
-      // showMainApp() terpanggil lagi (mis. setelah unlock), timer-nya di-reset.
-      if (!window._inactivityWatcherStarted) { window._inactivityWatcherStarted = true; initInactivityWatcher(); }
-      resetInactivityTimer();
       if (settings.alamat) document.getElementById('headerAlamat').textContent = settings.alamat;
       const _effectiveLogo = localStorage.getItem('tirtaLogo') || _logoUrl;
       if (_effectiveLogo) { _logoUrl = _effectiveLogo; document.getElementById('logoImg').src = _effectiveLogo; }
@@ -2489,7 +2340,7 @@
         filterTrx();
       }
     }
-    async function deleteTrx(id) { const confirm = await Swal.fire({ title:'Hapus?', text:'Hapus transaksi '+id+'?', icon:'warning', showCancelButton:true }); if (confirm.isConfirmed) { const trx = allTrxList.find(t => t.id === id); allTrxList = allTrxList.filter(t => t.id !== id); saveLocalData(); enqueueSync('deleteTrx', [id], 'Hapus transaksi ' + id); if (trx) logEditAction('transaksi', id, trx.customer || id, trx, null); filterTrx(); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Transaksi dihapus' }); } }
+    async function deleteTrx(id) { const confirm = await Swal.fire({ title:'Hapus?', text:'Hapus transaksi '+id+'?', icon:'warning', showCancelButton:true }); if (confirm.isConfirmed) { allTrxList = allTrxList.filter(t => t.id !== id); saveLocalData(); enqueueSync('deleteTrx', [id], 'Hapus transaksi ' + id); filterTrx(); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Transaksi dihapus' }); } }
     function openStrukById(id) { const trx = allTrxList.find(t => t.id === id); if (!trx) return Swal.fire('Error','Transaksi tidak ditemukan','error'); _strKData = { trx, items: trx.items || [] }; showStrukModal(); }
 
     // ========== SCANNER ==========
@@ -3321,7 +3172,7 @@
       await syncEditLogFromGAS();
       loadEditLog();
       if (!_editLog.length) return Swal.fire('Info','Belum ada riwayat edit','info');
-      const MODULE_LABEL = { transaksi:'🧾 Transaksi', produk:'📦 Produk', setoran:'💰 Setoran', stock:'📋 Stock', pelanggan:'👤 Pelanggan', user:'🔑 User' };
+      const MODULE_LABEL = { transaksi:'🧾 Transaksi', produk:'📦 Produk', setoran:'💰 Setoran', stock:'📋 Stock', pelanggan:'👤 Pelanggan' };
       const modulesPresent = [...new Set(_editLog.map(l => l.module || 'transaksi'))];
       const filterOpts = `<option value="">Semua Modul</option>` + modulesPresent.map(m => `<option value="${m}" ${m===moduleFilter?'selected':''}>${MODULE_LABEL[m]||m}</option>`).join('');
       const renderRows = (filt) => {
@@ -3330,32 +3181,24 @@
         rows = rows.slice(0, 80);
         if (!rows.length) return `<tr><td colspan="5" style="text-align:center;padding:20px;color:#94A3B8">Tidak ada log untuk modul ini</td></tr>`;
         return rows.map(log => {
-          const before = log.before||{}, after = log.after;
+          const before = log.before||{}, after = log.after||{};
           const module = log.module || 'transaksi';
           let diffParts = [];
-          const isDelete = after === null || after === undefined;
-          if (isDelete) {
-            // [NEW] Aksi HAPUS - tampilkan ringkas apa yang dihapus (bukan diff
-            // field-per-field seperti edit biasa, karena tidak ada "sesudah").
-            diffParts.push('<span style="color:#DC2626;font-weight:700">🗑️ Data dihapus</span>');
-          } else if (module === 'transaksi') {
+          if (module === 'transaksi') {
             const fieldLabel = { customer:'Customer', sales:'Sales', status:'Status', nett:'Nett' };
             diffParts = Object.keys(fieldLabel).filter(k=>before[k]!==after[k]).map(k=>`<b>${fieldLabel[k]}</b>: ${esc(String(before[k]))} → ${esc(String(after[k]))}`);
             const bItems = before.items||[], aItems = after.items||[];
             aItems.forEach((it,i) => { const bi = bItems[i]; if (bi && (bi.sku !== it.sku || bi.qty !== it.qty)) diffParts.push(`<b>Item #${i+1}</b>: ${esc(bi.sku)} (qty ${bi.qty}) → ${esc(it.sku)} (qty ${it.qty})`); });
           } else {
-            // Generik untuk modul lain (Produk/Setoran/Stock/Pelanggan/User) - bandingkan tiap field yang ada di after
+            // Generik untuk modul lain (Produk/Setoran/Stock/Pelanggan) - bandingkan tiap field yang ada di after
             diffParts = Object.keys(after).filter(k => JSON.stringify(before[k]) !== JSON.stringify(after[k])).map(k => `<b>${esc(k)}</b>: ${esc(String(before[k]===undefined?'-':before[k]))} → ${esc(String(after[k]))}`);
           }
           if (!diffParts.length) diffParts.push('<i>Tidak ada perubahan nilai</i>');
-          return `<tr style="border-bottom:1px solid #eee;${isDelete?'background:#FEF2F2':''}"><td style="padding:4px 8px;white-space:nowrap">${esc(log.waktu)}</td><td>${esc(log.editor)}</td><td style="font-size:10px;font-weight:700;color:${isDelete?'#DC2626':'#1A6DB5'}">${(MODULE_LABEL[module]||module)}</td><td style="font-family:monospace;font-size:11px">${esc(log.label||log.id||'-')}</td><td style="font-size:11px">${diffParts.join('<br>')}</td></tr>`;
+          return `<tr style="border-bottom:1px solid #eee"><td style="padding:4px 8px;white-space:nowrap">${esc(log.waktu)}</td><td>${esc(log.editor)}</td><td style="font-size:10px;font-weight:700;color:#1A6DB5">${(MODULE_LABEL[module]||module)}</td><td style="font-family:monospace;font-size:11px">${esc(log.label||log.id||'-')}</td><td style="font-size:11px">${diffParts.join('<br>')}</td></tr>`;
         }).join('');
       };
       const html = `<div style="text-align:left">
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-          <select id="editLogModuleFilter" onchange="_editLogApplyFilter()" style="padding:6px 10px;border-radius:8px;border:1px solid #E2E8F0;background:#F8FAFC;font-size:0.8rem;color:#1a2332">${filterOpts}</select>
-          <button type="button" onclick="exportEditLogExcel()" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:1px solid #DCEAFB;background:#EAF2FF;color:#1A6DB5;font-size:0.78rem;font-weight:700;cursor:pointer"><i class="fas fa-file-excel"></i> Ekspor Excel</button>
-        </div>
+        <select id="editLogModuleFilter" onchange="_editLogApplyFilter()" style="margin-bottom:8px;padding:6px 10px;border-radius:8px;border:1px solid #E2E8F0;background:#F8FAFC;font-size:0.8rem;color:#1a2332">${filterOpts}</select>
         <div style="max-height:400px;overflow-y:auto;font-size:12px">
           <table style="width:100%;border-collapse:collapse">
             <thead><tr style="background:#EAF4FD"><th style="padding:4px 8px;text-align:left">Waktu</th><th style="text-align:left">Editor</th><th style="text-align:left">Modul</th><th style="text-align:left">Ref</th><th style="text-align:left">Perubahan</th></tr></thead>
@@ -3370,27 +3213,6 @@
       const filt = document.getElementById('editLogModuleFilter')?.value || '';
       const tb = document.getElementById('editLogTbody');
       if (tb && window._editLogRenderRows) tb.innerHTML = window._editLogRenderRows(filt);
-    }
-    // [NEW] Ekspor Log Edit ke Excel - ikut filter modul yang sedang aktif di
-    // viewer (kalau ada), untuk kebutuhan audit/laporan ke pemilik bisnis.
-    function exportEditLogExcel() {
-      const filt = document.getElementById('editLogModuleFilter')?.value || '';
-      let rows = _editLog.slice().reverse();
-      if (filt) rows = rows.filter(l => (l.module||'transaksi') === filt);
-      if (!rows.length) return Swal.fire('Info', 'Tidak ada data log untuk diekspor', 'info');
-      const MODULE_LABEL = { transaksi:'Transaksi', produk:'Produk', setoran:'Setoran', stock:'Stock', pelanggan:'Pelanggan', user:'User' };
-      const aoa = [['Waktu','Editor','Modul','Referensi','Aksi','Sebelum','Sesudah']];
-      rows.forEach(log => {
-        const isDelete = log.after === null || log.after === undefined;
-        aoa.push([
-          log.waktu||'', log.editor||'', MODULE_LABEL[log.module]||log.module||'Transaksi', log.label||log.id||'',
-          isDelete ? 'HAPUS' : 'EDIT',
-          JSON.stringify(log.before||{}), isDelete ? '-' : JSON.stringify(log.after||{})
-        ]);
-      });
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Log Edit');
-      XLSX.writeFile(wb, `log-edit-${filt||'semua'}-${localDateStr()}.xlsx`);
     }
 
     // ========== FOTO BUKTI ==========
@@ -5998,30 +5820,6 @@
       const now = new Date(), date = localDateStr(now), createdAt = localDateStr(now)+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0'); 
       const entries = items.map((it, idx) => ({ id: inpId + '-' + (idx+1), groupId: inpId, sku: it.sku, nama: it.nama, qty: it.qty, hargaModal: it.hargaModal, disc: it.disc, netModal: it.netModal, driver, rit, status, date, createdAt })); 
       entries.forEach(e => stockInHistory.unshift(e)); 
-      // [NEW] Sinkronisasi harga modal produk otomatis dari Input Barang.
-      // Sebelumnya: `modal` di data Produk cuma diisi manual sekali di form
-      // Produk, TIDAK PERNAH ikut ter-update walau harga beli sebenarnya sudah
-      // berubah lewat Input Barang - jadi perhitungan profit di Transaksi/
-      // Grafik/Rekap bisa memakai angka modal yang sudah usang.
-      // Pendekatan yang dipakai: "harga modal terakhir" (bukan rata-rata
-      // tertimbang) - begitu ada barang masuk, modal produk langsung disamakan
-      // dengan harga beli bersih (setelah disc) dari input itu. Ini pilihan yang
-      // sengaja dibuat sederhana & mudah dipahami pemilik toko ("modal = harga
-      // beli terakhir"), dan tidak bergantung pada perhitungan stok berjalan yang
-      // lebih kompleks (rata-rata tertimbang perlu tahu stok saat ini yang akurat).
-      const modalUpdates = [];
-      items.forEach(it => {
-        const netModalPerUnit = it.hargaModal - (it.disc||0);
-        const p = products.find(x => x.sku === it.sku);
-        if (p && netModalPerUnit > 0 && p.modal !== netModalPerUnit) {
-          modalUpdates.push({ sku: p.sku, nama: p.nama, before: p.modal, after: netModalPerUnit });
-          p.modal = netModalPerUnit;
-        }
-      });
-      if (modalUpdates.length) {
-        modalUpdates.forEach(m => logEditAction('produk', m.sku, m.nama, { modal: m.before }, { modal: m.after, _sumber: 'Auto dari Input Barang ' + inpId }));
-        syncProductsToSheet();
-      }
       saveLocalData(); 
       entries.forEach(e => enqueueSync('saveInputBarang', [e], 'Input Barang ' + e.id)); // [PERF+NEW] instan lokal, sync lewat antrian
       Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Barang masuk dicatat' }); 
@@ -6073,11 +5871,9 @@
     async function deleteStockIn(id) {
       const confirm = await Swal.fire({ title:'Hapus?', text:'Hapus data input barang '+id+'?', icon:'warning', showCancelButton:true });
       if (confirm.isConfirmed) {
-        const rec = stockInHistory.find(s => s.id === id);
         stockInHistory = stockInHistory.filter(s => s.id !== id);
         saveLocalData();
         enqueueSync('deleteInputBarang', [id], 'Hapus input barang ' + id);
-        if (rec) logEditAction('stock', id, rec.nama || id, rec, null);
         renderStockHistory();
         Swal.fire({ toast:true, position:'top-end', showConfirmButton:false, timer:1500, icon:'success', title:'Data dihapus' });
       }
@@ -6246,23 +6042,21 @@
     function openProdukForm(idx) { document.getElementById('editProdIdx').value = idx; if (idx >= 0 && products[idx]) { const p = products[idx]; document.getElementById('produkModalTitle').textContent = 'Edit Produk'; document.getElementById('prodSku').value = p.sku||''; document.getElementById('prodBarcode').value = p.barcode||''; document.getElementById('prodNama').value = p.nama||''; document.getElementById('prodJual').value = p.jual||p.harga||0; document.getElementById('prodModal').value = p.modal||0; document.getElementById('prodStok').value = p.stokAwal||0; } else { document.getElementById('produkModalTitle').textContent = 'Tambah Produk'; ['prodSku','prodBarcode','prodNama'].forEach(id => document.getElementById(id).value = ''); document.getElementById('prodJual').value = ''; document.getElementById('prodModal').value = ''; document.getElementById('prodStok').value = ''; } document.getElementById('produkModal').classList.add('show'); }
     function closeProdukForm() { document.getElementById('produkModal').classList.remove('show'); }
     function saveProduk() { const sku = document.getElementById('prodSku').value.trim(), nama = document.getElementById('prodNama').value.trim(); if (!sku || !nama) return Swal.fire('Error','SKU dan Nama wajib diisi','error'); const obj = { sku, barcode: document.getElementById('prodBarcode').value.trim(), nama, jual: parseFloat(document.getElementById('prodJual').value)||0, harga: parseFloat(document.getElementById('prodJual').value)||0, modal: parseFloat(document.getElementById('prodModal').value)||0, stokAwal: parseInt(document.getElementById('prodStok').value)||0 }; const idx = parseInt(document.getElementById('editProdIdx').value); if (idx >= 0 && products[idx]) { const before = {...products[idx]}; products[idx] = obj; logEditAction('produk', sku, nama, before, obj); } else products.push(obj); saveLocalData(); closeProdukForm(); renderProdukList(); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Produk disimpan' }); syncProductsToSheet(); }
-    function deleteProduk(idx) { const p = products[idx]; Swal.fire({ title:'Hapus?', text:'Hapus '+products[idx].nama+'?', icon:'warning', showCancelButton:true }).then(r => { if (r.isConfirmed) { products.splice(idx,1); saveLocalData(); renderProdukList(); if (p) logEditAction('produk', p.sku, p.nama, p, null); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Produk dihapus' }); syncProductsToSheet(); } }); }
+    function deleteProduk(idx) { Swal.fire({ title:'Hapus?', text:'Hapus '+products[idx].nama+'?', icon:'warning', showCancelButton:true }).then(r => { if (r.isConfirmed) { products.splice(idx,1); saveLocalData(); renderProdukList(); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Produk dihapus' }); syncProductsToSheet(); } }); }
 
     // ========== PELANGGAN ==========
-    function loadPelanggan() { document.getElementById('contentArea').innerHTML = `<div class="card"><div class="flex-between mb-2"><div class="card-title"><i class="fas fa-address-book"></i> Daftar Pelanggan</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganToSheet()" title="Kirim data pelanggan lokal ke Google Sheets"><i class="fas fa-cloud-upload-alt"></i> Sync ke Sheets</button><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganFromSheet()" title="Ambil data pelanggan terbaru dari Google Sheets"><i class="fas fa-cloud-download-alt"></i> Sync ke Aplikasi</button><button class="btn btn-primary btn-sm" onclick="addPelanggan()">+ Tambah</button></div></div><input id="pelangganSearch" class="form-control mb-2" placeholder="🔍 Cari nama pelanggan…" oninput="renderPelangganList()"><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th style="text-align:center" title="Jumlah transaksi bulan ini">Transaksi<br><span style="font-weight:400;font-size:0.6rem;opacity:.7">Bulan Ini</span></th><th style="text-align:right">Piutang</th><th>Aksi</th></tr></thead><tbody id="pelangganTbody"></tbody></table></div><div id="pelangganPaginationBar"></div></div>`; renderPelangganList(); }
+    function loadPelanggan() { document.getElementById('contentArea').innerHTML = `<div class="card"><div class="flex-between mb-2"><div class="card-title"><i class="fas fa-address-book"></i> Daftar Pelanggan</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganToSheet()" title="Kirim data pelanggan lokal ke Google Sheets"><i class="fas fa-cloud-upload-alt"></i> Sync ke Sheets</button><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganFromSheet()" title="Ambil data pelanggan terbaru dari Google Sheets"><i class="fas fa-cloud-download-alt"></i> Sync ke Aplikasi</button><button class="btn btn-primary btn-sm" onclick="addPelanggan()">+ Tambah</button></div></div><input id="pelangganSearch" class="form-control mb-2" placeholder="🔍 Cari nama pelanggan…" oninput="renderPelangganList()"><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th style="text-align:center">Transaksi</th><th style="text-align:right">Piutang</th><th>Aksi</th></tr></thead><tbody id="pelangganTbody"></tbody></table></div><div id="pelangganPaginationBar"></div></div>`; renderPelangganList(); }
     function renderPelangganList(_pgKeep = false) {
       const tb = document.getElementById('pelangganTbody');
       if (!tb) return;
       if (!allCustomers.length) { tb.innerHTML = '<tr><td colspan="5" class="text-center text-sm" style="padding:32px">Belum ada pelanggan</td></tr>'; const pcb0 = document.getElementById('pelangganPaginationBar'); if (pcb0) pcb0.innerHTML = ''; return; }
-      // [CHANGED] Jumlah transaksi di kolom "Transaksi" sekarang cuma menghitung
-      // transaksi BULAN INI (bukan sepanjang waktu seperti sebelumnya) - piutang
-      // tetap dihitung all-time (tagihan lama tidak boleh "hilang" dari radar
-      // cuma karena sudah lewat bulan).
-      const bulanIni = localDateStr().substring(0, 7); // 'YYYY-MM'
+      // [NEW] Ringkasan per pelanggan (jumlah transaksi & total piutang belum bayar)
+      // dihitung sekali dari allTrxList, bukan query ulang per baris - supaya tetap
+      // ringan walau daftar pelanggan/transaksi banyak.
       const trxCountMap = {}, piutangMap = {};
       allTrxList.forEach(t => {
         const cust = t.customer || '';
-        if ((t.tgl||'').substring(0,7) === bulanIni) trxCountMap[cust] = (trxCountMap[cust] || 0) + 1;
+        trxCountMap[cust] = (trxCountMap[cust] || 0) + 1;
         if (t.status === 'belumTransfer') piutangMap[cust] = (piutangMap[cust] || 0) + (t.nett || 0);
       });
       const q = (document.getElementById('pelangganSearch')?.value || '').toLowerCase().trim();
@@ -6282,7 +6076,7 @@
           <td class="fw-bold">${esc(c)}</td>
           <td style="text-align:center;font-family:var(--mono)">${jumlahTrx || '-'}</td>
           <td style="text-align:right;font-family:var(--mono);font-weight:700;color:${piutang>0?'var(--merah)':'var(--text3)'}">${piutang>0?fmtRp(piutang):'-'}</td>
-          <td style="display:flex;gap:3px"><button class="btn btn-sm btn-outline" onclick="showPelangganDetail('${esc(c).replace(/'/g,"\\'")}')" title="Lihat riwayat & piutang"><i class="fas fa-eye"></i></button><button class="btn btn-sm btn-outline" onclick="editCustomerPhone('${esc(c).replace(/'/g,"\\'")}')" title="Atur nomor WA"><i class="fas fa-phone"></i></button><button class="btn btn-sm btn-outline" onclick="editCustomerAddress('${esc(c).replace(/'/g,"\\'")}')" title="Atur alamat"><i class="fas fa-map-marker-alt"></i></button><button class="btn btn-sm btn-outline" onclick="openCustomerAddressInMaps('${esc(c).replace(/'/g,"\\'")}')" title="Buka di Google Maps"><i class="fas fa-location-arrow"></i></button><button class="btn btn-sm btn-danger" onclick="deletePelanggan(${i})">🗑</button></td>
+          <td style="display:flex;gap:3px"><button class="btn btn-sm btn-outline" onclick="showPelangganDetail('${esc(c).replace(/'/g,"\\'")}')" title="Lihat riwayat & piutang"><i class="fas fa-eye"></i></button><button class="btn btn-sm btn-outline" onclick="editCustomerPhone('${esc(c).replace(/'/g,"\\'")}')" title="Atur nomor WA"><i class="fas fa-phone"></i></button><button class="btn btn-sm btn-danger" onclick="deletePelanggan(${i})">🗑</button></td>
         </tr>`;
       }).join('');
     }
@@ -6314,9 +6108,7 @@
         return items.length > 1 ? `${esc(first)} +${items.length-1} lainnya` : esc(first);
       };
       const nameEsc = esc(name).replace(/'/g,"\\'");
-      const custAddress = getCustomerAddress(name);
       const html = `<div style="text-align:left">
-        ${custAddress ? `<div style="font-size:0.72rem;color:#5a7a90;margin-bottom:10px"><i class="fas fa-map-marker-alt"></i> ${esc(custAddress)} <a href="javascript:void(0)" onclick="editCustomerAddress('${nameEsc}')" style="color:#1A6DB5;text-decoration:underline">Ubah</a> · <a href="javascript:void(0)" onclick="openCustomerAddressInMaps('${nameEsc}')" style="color:#1A6DB5;text-decoration:underline">Buka di Maps</a></div>` : `<div style="margin-bottom:10px"><button type="button" onclick="editCustomerAddress('${nameEsc}')" style="font-size:0.68rem;color:#1A6DB5;background:none;border:none;cursor:pointer;padding:0"><i class="fas fa-map-marker-alt"></i> + Tambah alamat</button></div>`}
         <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:110px"><label style="font-size:0.62rem;color:#5a7a90;display:block;margin-bottom:2px">Dari tanggal</label><input type="date" id="pgDetStart" value="${startDate}" style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #D8E3EE;font-size:0.72rem;color:#1a2332;background:#F1F5F9"></div>
           <div style="flex:1;min-width:110px"><label style="font-size:0.62rem;color:#5a7a90;display:block;margin-bottom:2px">Sampai tanggal</label><input type="date" id="pgDetEnd" value="${endDate}" style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #D8E3EE;font-size:0.72rem;color:#1a2332;background:#F1F5F9"></div>
@@ -6461,7 +6253,7 @@
       kirimWaKeNomorPelanggan(p.name, lines.join('\n'));
     }
     function addPelanggan() { Swal.fire({ title:'Tambah Pelanggan', input:'text', inputLabel:'Nama pelanggan', showCancelButton:true }).then(r => { if (r.isConfirmed && r.value) { const name = r.value.trim(); if (!allCustomers.includes(name)) { allCustomers.push(name); pelanggan = allCustomers.slice(); saveLocalData(); renderPelangganList(); syncCustomersToSheet(); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Pelanggan ditambahkan' }); } else Swal.fire('Info','Sudah ada','info'); } }); }
-    function deletePelanggan(idx) { const nama = allCustomers[idx]; Swal.fire({ title:'Hapus?', text:'Hapus '+allCustomers[idx]+'?', icon:'warning', showCancelButton:true }).then(r => { if (r.isConfirmed) { allCustomers.splice(idx,1); pelanggan = allCustomers.slice(); saveLocalData(); renderPelangganList(); syncCustomersToSheet(); if (nama) logEditAction('pelanggan', nama, nama, { nama }, null); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Pelanggan dihapus' }); } }); }
+    function deletePelanggan(idx) { Swal.fire({ title:'Hapus?', text:'Hapus '+allCustomers[idx]+'?', icon:'warning', showCancelButton:true }).then(r => { if (r.isConfirmed) { allCustomers.splice(idx,1); pelanggan = allCustomers.slice(); saveLocalData(); renderPelangganList(); syncCustomersToSheet(); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Pelanggan dihapus' }); } }); }
 
     // ========== PENGATURAN ==========
     function loadPengaturan() { 
@@ -6491,8 +6283,6 @@
           <div class="section-title">💾 Backup & Restore</div><div class="flex-row"><button class="btn btn-warning" style="flex:1" onclick="backupData()"><i class="fas fa-download"></i> Backup</button><button class="btn btn-danger" style="flex:1" onclick="restoreData()"><i class="fas fa-upload"></i> Restore</button></div>
           <div class="section-title">📋 Riwayat Perubahan Data</div>
           <div class="form-group"><p class="text-sm" style="color:var(--text3);margin-bottom:8px">Jejak audit semua edit (Transaksi, Produk, Setoran, Stock, Pelanggan) - kapan diubah & oleh siapa, digabung dari semua device/admin.</p><button class="btn btn-outline btn-block" onclick="showEditLog()"><i class="fas fa-history"></i> Lihat Log Edit</button></div>
-          <div class="section-title">🩺 Kesehatan Sync</div>
-          <div class="form-group"><p class="text-sm" style="color:var(--text3);margin-bottom:8px">Cek kapan terakhir berhasil sync, data apa yang masih mengantre, dan jumlah data tersimpan di device ini.</p><button class="btn btn-outline btn-block" onclick="showSyncHealthDashboard()"><i class="fas fa-heartbeat"></i> Lihat Kesehatan Sync</button></div>
           <div class="section-title">🔐 Keamanan</div>
           <div class="form-group">
             <label>Login Biometrik (Sidik Jari / Face ID)</label>
@@ -6503,13 +6293,6 @@
             <label>Kunci Pola (Pattern Lock)</label>
             <div id="patternSettingStatus" style="font-size:0.75rem;color:var(--text3);margin-bottom:8px"></div>
             <button class="btn btn-outline btn-block" id="patternSettingBtn" onclick="togglePatternSetting()">Memuat...</button>
-          </div>
-          <div class="form-group mt-2">
-            <label>Auto-Kunci Setelah Tidak Aktif</label>
-            <p class="text-sm" style="color:var(--text3);margin-bottom:6px">Kunci otomatis (pakai Biometrik/Pola/login ulang) kalau HP didiamkan tanpa disentuh.</p>
-            <select id="autoLockSelect" onchange="setAutoLockMinutes(this.value)">
-              <option value="0">Mati</option><option value="1">1 menit</option><option value="5">5 menit</option><option value="10">10 menit</option><option value="30">30 menit</option>
-            </select>
           </div>
         </div>`;
       document.getElementById('setNamaToko').value=settings.namaToko||''; document.getElementById('setTagline').value=settings.tagline||''; document.getElementById('setAlamat').value=settings.alamat||''; document.getElementById('setTelepon').value=settings.telepon||''; document.getElementById('setFooter').value=settings.bottomLine||''; document.getElementById('setB1Nama').value=settings.bank1?.nama||''; document.getElementById('setB1Norek').value=settings.bank1?.norek||''; document.getElementById('setB1Penerima').value=settings.bank1?.penerima||''; document.getElementById('setB2Nama').value=settings.bank2?.nama||''; document.getElementById('setB2Norek').value=settings.bank2?.norek||''; document.getElementById('setB2Penerima').value=settings.bank2?.penerima||''; 
@@ -6590,7 +6373,7 @@
     function removeDriver(i) { drivers.splice(i,1); saveLocalData(); enqueueSync('saveDrivers', [drivers.map(String)], 'Daftar Driver'); renderDriverTags(); }
     function renderUserList() { const el = document.getElementById('userList'); if (!el) return; el.innerHTML = allUsers.length ? allUsers.map((u,i) => `<div class="flex-between mb-1" style="padding:4px 0;border-bottom:1px solid var(--border)"><span><b>${esc(u.name)}</b> (${u.role})</span><button class="btn btn-sm btn-danger" onclick="deleteUser(${i})">🗑</button></div>`).join('') : '<p class="text-sm text-center">Belum ada user</p>'; }
     function addUser() { const name = document.getElementById('newUserName').value.trim(), role = document.getElementById('newUserRole').value, pass = document.getElementById('newUserPass').value.trim(); if (!name || !pass) return Swal.fire('Error','Nama dan password wajib diisi','error'); if (allUsers.find(u => u.name === name)) return Swal.fire('Error','Nama sudah ada','error'); allUsers.push({ name, role }); saveLocalData(); enqueueSync('saveUser', [{ name, role, password: pass }], 'User ' + name); document.getElementById('newUserName').value = ''; document.getElementById('newUserPass').value = ''; renderUserList(); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'User ditambahkan' }); }
-    function deleteUser(i) { Swal.fire({ title:'Hapus user?', text:'Hapus '+allUsers[i].name+'?', icon:'warning', showCancelButton:true }).then(r => { if (r.isConfirmed) { const deletedUser = {...allUsers[i]}; allUsers.splice(i,1); saveLocalData(); renderUserList(); enqueueSync('deleteUser', [deletedUser.name], 'Hapus user ' + deletedUser.name); logEditAction('user', deletedUser.name, deletedUser.name, deletedUser, null); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'User dihapus' }); } }); }
+    function deleteUser(i) { Swal.fire({ title:'Hapus user?', text:'Hapus '+allUsers[i].name+'?', icon:'warning', showCancelButton:true }).then(r => { if (r.isConfirmed) { const deletedName = allUsers[i].name; allUsers.splice(i,1); saveLocalData(); renderUserList(); enqueueSync('deleteUser', [deletedName], 'Hapus user ' + deletedName); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'User dihapus' }); } }); }
     function savePengaturan() { settings.namaToko = document.getElementById('setNamaToko').value.trim(); settings.tagline = document.getElementById('setTagline').value.trim(); settings.alamat = document.getElementById('setAlamat').value.trim(); settings.telepon = document.getElementById('setTelepon').value.trim(); settings.bottomLine = document.getElementById('setFooter').value.trim(); settings.bank1 = { nama: document.getElementById('setB1Nama').value.trim(), norek: document.getElementById('setB1Norek').value.trim(), penerima: document.getElementById('setB1Penerima').value.trim() }; settings.bank2 = { nama: document.getElementById('setB2Nama').value.trim(), norek: document.getElementById('setB2Norek').value.trim(), penerima: document.getElementById('setB2Penerima').value.trim() }; document.getElementById('headerAlamat').textContent = settings.alamat; saveLocalData(); enqueueSync('saveSettings', [{ storeName: settings.namaToko||settings.storeName, tagline: settings.tagline, address: settings.alamat||settings.address, phone: settings.telepon||settings.phone, footer: settings.bottomLine||settings.footer, salesList: settings.salesList||[], bank1: settings.bank1, bank2: settings.bank2, qris: settings.qris||_qrisUrl }], 'Pengaturan Toko'); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Pengaturan disimpan' }); }
     function backupData() { saveLocalData(); const blob = new Blob([localStorage.getItem('tirtaFullData')], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tirta-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); }
     function restoreData() { Swal.fire({ title:'Restore Data', text:'Pilih file backup JSON', icon:'warning', showCancelButton:true }).then(r => { if (r.isConfirmed) { const input = document.createElement('input'); input.type='file'; input.accept='.json'; input.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => { try { const data = JSON.parse(ev.target.result); localStorage.setItem('tirtaFullData', JSON.stringify(data)); loadLocalData(); Swal.fire('Sukses','Data direstore! Refresh halaman.','success'); } catch(err) { Swal.fire('Error','File tidak valid','error'); } }; reader.readAsText(file); }; input.click(); } }); }
@@ -6624,13 +6407,6 @@
               <div id="patternSettingStatus" style="font-size:0.75rem;color:var(--text3);margin-bottom:8px"></div>
               <button class="btn btn-outline btn-block" id="patternSettingBtn" onclick="togglePatternSetting()">Memuat...</button>
             </div>
-            <div class="form-group mt-2">
-              <label>Auto-Kunci Setelah Tidak Aktif</label>
-              <p class="text-sm" style="color:var(--text3);margin-bottom:6px">Kunci otomatis (pakai Biometrik/Pola/login ulang) kalau HP didiamkan tanpa disentuh.</p>
-              <select id="autoLockSelect" onchange="setAutoLockMinutes(this.value)">
-                <option value="0">Mati</option><option value="1">1 menit</option><option value="5">5 menit</option><option value="10">10 menit</option><option value="30">30 menit</option>
-              </select>
-            </div>
           </div>
         `;
         if (_logoUrl) document.getElementById('salesLogoPrev').innerHTML = `<img src="${_logoUrl}" style="max-height:80px;max-width:100%;border-radius:8px"><div style="font-size:11px;color:var(--text3);margin-top:6px">Klik untuk ganti</div>`;
@@ -6659,13 +6435,6 @@
               <label>Kunci Pola (Pattern Lock)</label>
               <div id="patternSettingStatus" style="font-size:0.75rem;color:var(--text3);margin-bottom:8px"></div>
               <button class="btn btn-outline btn-block" id="patternSettingBtn" onclick="togglePatternSetting()">Memuat...</button>
-            </div>
-            <div class="form-group mt-2">
-              <label>Auto-Kunci Setelah Tidak Aktif</label>
-              <p class="text-sm" style="color:var(--text3);margin-bottom:6px">Kunci otomatis (pakai Biometrik/Pola/login ulang) kalau HP didiamkan tanpa disentuh.</p>
-              <select id="autoLockSelect" onchange="setAutoLockMinutes(this.value)">
-                <option value="0">Mati</option><option value="1">1 menit</option><option value="5">5 menit</option><option value="10">10 menit</option><option value="30">30 menit</option>
-              </select>
             </div>
           </div>
         `;
@@ -6837,69 +6606,6 @@
           if (currentPage === 'pelanggan' && typeof renderPelangganList === 'function') renderPelangganList(true);
         }
       } catch (e) { console.warn('Gagal ambil nomor WA pelanggan dari server:', e); }
-    }
-
-    // ========== [NEW] ALAMAT PELANGGAN - pola PERSIS sama dengan nomor WA di atas ==========
-    const CUSTOMER_ADDRESS_KEY = 'tirtaCustomerAddresses';
-    function _loadCustomerAddresses() { try { return JSON.parse(localStorage.getItem(CUSTOMER_ADDRESS_KEY) || '{}'); } catch(e) { return {}; } }
-    function getCustomerAddress(name) { return _loadCustomerAddresses()[name] || ''; }
-    function setCustomerAddress(name, address) {
-      const m = _loadCustomerAddresses();
-      m[name] = address;
-      localStorage.setItem(CUSTOMER_ADDRESS_KEY, JSON.stringify(m));
-      syncCustomerAddressesToSheet();
-    }
-    let _custAddressSyncTimer = null;
-    function syncCustomerAddressesToSheet() {
-      if (_custAddressSyncTimer) clearTimeout(_custAddressSyncTimer);
-      _custAddressSyncTimer = setTimeout(() => {
-        _custAddressSyncTimer = null;
-        _syncQueue = _syncQueue.filter(q => q.fn !== 'saveCustomerAddresses');
-        _saveSyncQueueState();
-        enqueueSync('saveCustomerAddresses', [_loadCustomerAddresses()], 'Alamat Pelanggan');
-      }, 1500);
-    }
-    async function syncCustomerAddressesFromGAS() {
-      try {
-        const serverMap = await gasCall('getCustomerAddresses', []);
-        if (serverMap && typeof serverMap === 'object') {
-          const local = _loadCustomerAddresses();
-          const merged = Object.assign({}, local, serverMap);
-          localStorage.setItem(CUSTOMER_ADDRESS_KEY, JSON.stringify(merged));
-          if (currentPage === 'pelanggan' && typeof renderPelangganList === 'function') renderPelangganList(true);
-        }
-      } catch (e) { console.warn('Gagal ambil alamat pelanggan dari server:', e); }
-    }
-    // Set/ubah alamat pelanggan dari daftar Pelanggan (tombol 📍 di tiap baris).
-    function editCustomerAddress(name) {
-      const before = getCustomerAddress(name);
-      Swal.fire({
-        title: 'Alamat ' + name,
-        input: 'textarea',
-        inputLabel: 'Alamat pengiriman pelanggan',
-        inputValue: before,
-        showCancelButton: true,
-        confirmButtonText: 'Simpan'
-      }).then(r => {
-        if (!r.isConfirmed) return;
-        setCustomerAddress(name, r.value.trim());
-        if (before !== r.value.trim()) logEditAction('pelanggan', name, name, { alamat: before }, { alamat: r.value.trim() });
-        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Alamat disimpan' });
-      });
-    }
-    // [NEW] Buka alamat pelanggan langsung di Google Maps - berguna terutama
-    // buat driver yang mau ke lokasi pengiriman. Kalau alamat belum diisi,
-    // langsung tawarkan untuk mengisinya dulu daripada buka Maps kosong.
-    function openCustomerAddressInMaps(name) {
-      const address = getCustomerAddress(name);
-      if (!address) {
-        return Swal.fire({
-          icon: 'info', title: 'Alamat Belum Diisi',
-          text: 'Alamat ' + name + ' belum diisi. Isi dulu supaya bisa dibuka di Maps.',
-          showCancelButton: true, confirmButtonText: 'Isi Alamat', cancelButtonText: 'Tutup'
-        }).then(r => { if (r.isConfirmed) editCustomerAddress(name); });
-      }
-      window.open('https://maps.google.com/?q=' + encodeURIComponent(address), '_blank');
     }
     // Normalisasi nomor HP Indonesia ke format wa.me (62xxxxxxxxxx, tanpa +/spasi/strip).
     function _normalizeWaNumber(raw) {
