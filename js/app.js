@@ -2542,16 +2542,20 @@
       let sOpts = '<option value="">Pilih Sales</option>';
       (settings.salesList||[]).forEach(s => { sOpts += `<option value="${esc(s)}">${esc(s)}</option>`; });
       document.getElementById('contentArea').innerHTML = 
-        `<div class="card">
-          <div class="flex-row mb-2">
-            <div class="form-group col-1"><label>Tanggal</label><input type="date" id="setorTgl"></div>
-            <div class="form-group col-1"><label>Sales</label><select id="setorSales">${sOpts}</select></div>
-            <button class="btn btn-primary" onclick="doSetoran()" style="height:44px;align-self:flex-end">💰 Tampilkan</button>
-            <button class="btn btn-outline" onclick="showSetoranHistoryModal()" style="height:44px;align-self:flex-end"><i class="fas fa-history"></i> Riwayat</button>
-            <button class="btn btn-outline" onclick="showSetoranEditLog()" style="height:44px;align-self:flex-end"><i class="fas fa-clipboard-list"></i> Log Edit</button>
-          </div>
+        `<div class="stp">
+        <div class="stp-hero">
+          <div class="stp-hero-top"><div><div class="stp-eyebrow"><i class="fas fa-money-bill-wave"></i> Setoran Sales</div><div class="stp-hero-sub">Hitung setoran COD harian</div></div>
+            <div class="stp-hero-actions"><button class="stp-hbtn" onclick="showSetoranHistoryModal()"><i class="fas fa-history"></i> Riwayat</button><button class="stp-hbtn" onclick="showSetoranEditLog()"><i class="fas fa-clipboard-list"></i> Log Edit</button></div></div>
         </div>
-        <div id="setoranContent"><div class="text-center text-sm" style="padding:40px">Pilih tanggal & sales lalu klik Tampilkan</div></div>`;
+        <div class="stp-panel">
+          <div class="stp-row">
+            <div class="form-group"><label>Tanggal</label><input type="date" id="setorTgl"></div>
+            <div class="form-group"><label>Sales</label><select id="setorSales">${sOpts}</select></div>
+          </div>
+          <button class="stp-go" onclick="doSetoran()"><i class="fas fa-wallet"></i> Tampilkan</button>
+        </div>
+        <div id="setoranContent"><div class="rk-empty"><i class="fas fa-coins"></i><div>Pilih tanggal &amp; sales lalu klik Tampilkan</div></div></div>
+        </div>`;
       document.getElementById('setorTgl').value = localDateStr(); 
     }
 
@@ -2566,23 +2570,31 @@
       const existingIdx = setoranHistory.findIndex(s => (s.tgl||'').substring(0,10) === tgl && (s.sales||'').toLowerCase().trim() === sales.toLowerCase().trim());
       const ex = existingIdx >= 0 ? normalizeSetoranRecord(setoranHistory[existingIdx]) : null;
       document.getElementById('setoranContent').innerHTML = 
-        `<div class="card"><div class="flex-between mb-2"><div><strong>💰 Setoran: ${esc(sales)}</strong><br><span class="text-sm">${fmtDate(tgl)}</span></div><div style="font-size:1.2rem;font-weight:800;color:var(--biru)">Grand Total COD: ${fmtRp(grand)}</div></div>
-        ${ex ? '<div style="background:#FFF7E6;border:1px solid #FFE2A8;border-radius:8px;padding:8px 12px;font-size:12px;color:#92660A;margin-bottom:10px"><i class="fas fa-info-circle"></i> Setoran tanggal & sales ini sudah tersimpan di Google Sheets. Data di bawah dimuat otomatis — klik Simpan untuk update.</div>' : ''}
+        `<div class="stp-card">
+        <div class="stp-sum"><div><div class="stp-sum-l">Setoran</div><div class="stp-sum-n">${esc(sales)}</div><div class="stp-sum-d">${fmtDate(tgl)}</div></div><div class="stp-sum-r"><div class="stp-sum-l">Grand Total COD</div><div class="stp-sum-v">${fmtRp(grand)}</div></div></div>
+        ${ex ? '<div class="stp-note"><i class="fas fa-info-circle"></i> Setoran tanggal & sales ini sudah tersimpan di Google Sheets. Data di bawah dimuat otomatis — klik Simpan untuk update.</div>' : ''}
         <input type="hidden" id="stGrand" value="${grand}">
+        <div class="stp-sec"><span class="stp-sec-ic"><i class="fas fa-upload"></i></span>Pengeluaran</div>
+        <div class="stp-grid">
         <div class="form-group"><label>🍽️ Uang Makan</label><input type="number" id="stMakan" value="${ex?ex.makan:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
         <div class="form-group"><label>🎁 Tips</label><input type="number" id="stTips" value="${ex?ex.tips:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
         <div class="form-group"><label>🅿️ Parkir</label><input type="number" id="stParkir" value="${ex?ex.parkir:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
         <div class="form-group"><label>⛽ Bensin</label><input type="number" id="stBensin" value="${ex?ex.bensin:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
         <div class="form-group"><label>💳 Flazz</label><input type="number" id="stFlazz" value="${ex?ex.flazz:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
         <div class="form-group"><label>🏦 Transfer</label><input type="number" id="stTransfer" value="${ex?ex.transfer:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
+        </div>
+        <div class="stp-sec"><span class="stp-sec-ic"><i class="fas fa-download"></i></span>Penerimaan Tambahan</div>
+        <div class="stp-grid">
         <div class="form-group"><label>💵 Cicilan</label><input type="number" id="stCicilan" value="${ex?ex.cicilan:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
         <div class="form-group"><label>📄 Tagihan</label><input type="number" id="stTagihan" value="${ex?ex.tagihan:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
-        <div class="flex-row"><div class="form-group col-2"><label>Keterangan 1</label><input id="stKet1" placeholder="contoh: Bonus" value="${ex?esc(ex.ket1):''}" oninput="calcSetoran()"></div><div class="form-group col-1"><label>Jumlah 1</label><input type="number" id="stJml1" value="${ex?ex.jml1:''}" placeholder="0" min="0" oninput="calcSetoran()"></div></div>
-        <div class="flex-row"><div class="form-group col-2"><label>Keterangan 2</label><input id="stKet2" placeholder="contoh: Lain-lain" value="${ex?esc(ex.ket2):''}" oninput="calcSetoran()"></div><div class="form-group col-1"><label>Jumlah 2</label><input type="number" id="stJml2" value="${ex?ex.jml2:''}" placeholder="0" min="0" oninput="calcSetoran()"></div></div>
-        <div class="total-box"><div class="flex-between"><span>TOTAL</span><span id="stTotal">Rp 0</span></div></div>
-        <div class="form-group"><label>✅ SETOR</label><input type="number" id="stSetor" value="${ex?ex.setor:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
-        <div class="total-box danger"><div class="flex-between"><span>SELISIH</span><span id="stSelisih">Rp 0</span></div></div>
-        <button class="btn btn-primary btn-block mt-2" onclick="saveSetoran()">💾 Simpan Setoran</button></div>`; 
+        </div>
+        <div class="stp-sec"><span class="stp-sec-ic"><i class="fas fa-pen"></i></span>Lain-lain</div>
+        <div class="stp-ket"><div class="form-group"><label>Keterangan 1</label><input id="stKet1" placeholder="contoh: Bonus" value="${ex?esc(ex.ket1):''}" oninput="calcSetoran()"></div><div class="form-group"><label>Jumlah 1</label><input type="number" id="stJml1" value="${ex?ex.jml1:''}" placeholder="0" min="0" oninput="calcSetoran()"></div></div>
+        <div class="stp-ket"><div class="form-group"><label>Keterangan 2</label><input id="stKet2" placeholder="contoh: Lain-lain" value="${ex?esc(ex.ket2):''}" oninput="calcSetoran()"></div><div class="form-group"><label>Jumlah 2</label><input type="number" id="stJml2" value="${ex?ex.jml2:''}" placeholder="0" min="0" oninput="calcSetoran()"></div></div>
+        <div class="total-box stp-total"><div class="flex-between"><span>TOTAL</span><span id="stTotal">Rp 0</span></div></div>
+        <div class="form-group stp-setor"><label>✅ SETOR</label><input type="number" id="stSetor" value="${ex?ex.setor:''}" placeholder="0" min="0" oninput="calcSetoran()"></div>
+        <div class="total-box danger stp-selisih"><div class="flex-between"><span>SELISIH</span><span id="stSelisih">Rp 0</span></div></div>
+        <button class="stp-save" onclick="saveSetoran()"><i class="fas fa-floppy-disk"></i> Simpan Setoran</button></div>`; 
       calcSetoran(); 
       // [NEW] Jika data sudah ada di Sheets, masuk mode edit agar tombol Simpan mengupdate, bukan menduplikasi
       if (ex) {
@@ -2773,26 +2785,27 @@
       if (!_pgKeep) pgReset('rs');
       const _pg = pgSlice(rowsWithIdx, 'rs', 30);
       window._pgRerender_rs = () => renderRekapSetoranTable(true);
-      document.getElementById('contentArea').innerHTML = `
-        <div class="card" style="padding:0;overflow:hidden">
+      const _rsTotSetor = rowsWithIdx.reduce((a,r)=>a+(Number(r.s.setor)||0),0), _rsTotSelisih = rowsWithIdx.reduce((a,r)=>a+(Number(r.s.selisih)||0),0), _rsTotCod = rowsWithIdx.reduce((a,r)=>a+(Number(r.s.grandTotal)||0),0);
+      document.getElementById('contentArea').innerHTML = `<div class="rsp">
+        <div class="rsp-hero">
+          <div class="rsp-hero-top"><div><div class="rsp-eyebrow"><i class="fas fa-table"></i> Rekap Setoran</div><div class="rsp-hero-sub">${rowsWithIdx.length} data${_rsFilterSales ? ' · ' + esc(_rsFilterSales) : ' · Semua Sales'}${_rsFilterDate ? ' · ' + fmtDate(_rsFilterDate) : ' · Semua Tanggal'}</div></div>
+            <div class="rsp-hero-actions"><button class="rsp-hbtn" onclick="loadRekapSetoran()"><i class="fas fa-sync"></i> Refresh</button><button class="rsp-hbtn" onclick="showSetoranEditLog()"><i class="fas fa-clipboard-list"></i> Log Edit</button></div></div>
+          <div class="rsp-hero-val">${fmtRp(_rsTotSetor)}</div>
+          <div class="rsp-hero-lbl">Total Setor</div>
+          <div class="rsp-chips"><div class="rsp-chip"><span>Grand COD</span><b>${fmtRp(_rsTotCod)}</b></div><div class="rsp-chip ${_rsTotSelisih<0?'neg':''}"><span>Selisih</span><b>${fmtRp(_rsTotSelisih)}</b></div></div>
+        </div>
+        <div class="card rsp-card" style="padding:0;overflow:hidden">
           ${rsNavHtml}
           ${rsDateFilterHtml}
-          <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border)">
-            <strong>📊 Rekap Setoran (${rowsWithIdx.length} data)</strong>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-sm btn-outline" onclick="loadRekapSetoran()"><i class="fas fa-sync"></i> Refresh dari Sheets</button>
-              <button class="btn btn-sm btn-ghost" onclick="showSetoranEditLog()"><i class="fas fa-clipboard-list"></i> Log Edit</button>
-            </div>
-          </div>
           <div class="tw-scroll-toolbar"><span>Geser tabel</span><button type="button" class="tw-scroll-arrow" onclick="document.getElementById('rsTableWrap').scrollBy({left:-140,behavior:'smooth'})" aria-label="Geser ke kiri"><i class="fas fa-chevron-left"></i></button><button type="button" class="tw-scroll-arrow" onclick="document.getElementById('rsTableWrap').scrollBy({left:140,behavior:'smooth'})" aria-label="Geser ke kanan"><i class="fas fa-chevron-right"></i></button></div>
-          <div class="table-wrap" id="rsTableWrap"><table style="font-size:11px;white-space:nowrap">
+          <div class="table-wrap" id="rsTableWrap"><table class="rsp-table" style="font-size:11px;white-space:nowrap">
             <thead><tr>
               <th>Tgl</th><th>Sales</th><th>Grand COD</th><th>Uang Makan</th><th>Tips</th><th>Parkir</th><th>Bensin</th><th>Flazz</th><th>Transfer</th><th>Cicilan</th><th>Tagihan</th><th>Ket 1</th><th>Jml 1</th><th>Ket 2</th><th>Jml 2</th><th>Total</th><th>Setor</th><th>Selisih</th><th>Aksi</th>
             </tr></thead>
             <tbody id="rekapSetoranTbody">${_pg.items.length ? _pg.items.map(r => renderRekapSetoranRow(r.s, r.idx)).join('') : '<tr><td colspan="19" class="text-center text-sm" style="padding:20px">Tidak ada data setoran untuk filter ini.</td></tr>'}</tbody>
           </table></div>
           ${pgBar('rs', _pg.page, _pg.totalPages, _pg.total, _pg.pageSize)}
-        </div>`;
+        </div></div>`;
       _pg.items.forEach(r => calcRekapSetoranRow(r.idx));
     }
 
@@ -2812,25 +2825,25 @@
       const inp = (field, val, width) => `<input type="number" id="rs_${field}_${i}" value="${val||0}" min="0" oninput="calcRekapSetoranRow(${i})" style="width:${width||'68px'};font-size:11px;padding:3px 4px;border:1px solid #d9d9d9;border-radius:5px">`;
       const txt = (field, val, width) => `<input type="text" id="rs_${field}_${i}" value="${esc(val||'')}" oninput="calcRekapSetoranRow(${i})" style="width:${width||'80px'};font-size:11px;padding:3px 4px;border:1px solid #d9d9d9;border-radius:5px">`;
       return `<tr data-idx="${i}">
-        <td>${fmtDate(s.tgl)}</td>
-        <td><b>${esc(s.sales)}</b></td>
-        <td id="rs_grandDisp_${i}" style="text-align:right;font-weight:600">${fmtRp(s.grandTotal)}</td>
-        <td>${inp('makan', s.makan)}</td>
-        <td>${inp('tips', s.tips)}</td>
-        <td>${inp('parkir', s.parkir)}</td>
-        <td>${inp('bensin', s.bensin)}</td>
-        <td>${inp('flazz', s.flazz)}</td>
-        <td>${inp('transfer', s.transfer)}</td>
-        <td>${inp('cicilan', s.cicilan)}</td>
-        <td>${inp('tagihan', s.tagihan)}</td>
-        <td>${txt('ket1', s.ket1)}</td>
-        <td>${inp('jml1', s.jml1)}</td>
-        <td>${txt('ket2', s.ket2)}</td>
-        <td>${inp('jml2', s.jml2)}</td>
-        <td id="rs_totalDisp_${i}" style="text-align:right;font-weight:700;color:var(--biru)">${fmtRp(s.total)}</td>
-        <td>${inp('setor', s.setor)}</td>
-        <td id="rs_selisihDisp_${i}" style="text-align:right;font-weight:700">${fmtRp(s.selisih)}</td>
-        <td><button class="btn btn-sm btn-primary" onclick="saveRekapSetoranRow(${i})">💾 Simpan</button> <button class="btn btn-sm btn-outline" onclick="cetakRekapSetoranRow(${i})">🖨️ Cetak</button></td>
+        <td data-label="Tanggal" class="rsp-tgl">${fmtDate(s.tgl)}</td>
+        <td data-label="Sales" class="rsp-sales"><b>${esc(s.sales)}</b></td>
+        <td data-label="Grand COD" class="rsp-cod" id="rs_grandDisp_${i}" style="text-align:right;font-weight:600">${fmtRp(s.grandTotal)}</td>
+        <td data-label="Uang Makan" class="rsp-f">${inp('makan', s.makan)}</td>
+        <td data-label="Tips" class="rsp-f">${inp('tips', s.tips)}</td>
+        <td data-label="Parkir" class="rsp-f">${inp('parkir', s.parkir)}</td>
+        <td data-label="Bensin" class="rsp-f">${inp('bensin', s.bensin)}</td>
+        <td data-label="Flazz" class="rsp-f">${inp('flazz', s.flazz)}</td>
+        <td data-label="Transfer" class="rsp-f">${inp('transfer', s.transfer)}</td>
+        <td data-label="Cicilan" class="rsp-f">${inp('cicilan', s.cicilan)}</td>
+        <td data-label="Tagihan" class="rsp-f">${inp('tagihan', s.tagihan)}</td>
+        <td data-label="Ket 1" class="rsp-f">${txt('ket1', s.ket1)}</td>
+        <td data-label="Jml 1" class="rsp-f">${inp('jml1', s.jml1)}</td>
+        <td data-label="Ket 2" class="rsp-f">${txt('ket2', s.ket2)}</td>
+        <td data-label="Jml 2" class="rsp-f">${inp('jml2', s.jml2)}</td>
+        <td data-label="Total" class="rsp-total" id="rs_totalDisp_${i}" style="text-align:right;font-weight:700;color:var(--biru)">${fmtRp(s.total)}</td>
+        <td data-label="Setor" class="rsp-f">${inp('setor', s.setor)}</td>
+        <td data-label="Selisih" class="rsp-selisih" id="rs_selisihDisp_${i}" style="text-align:right;font-weight:700">${fmtRp(s.selisih)}</td>
+        <td data-label="" class="rsp-act"><button class="btn btn-sm btn-primary" onclick="saveRekapSetoranRow(${i})">💾 Simpan</button> <button class="btn btn-sm btn-outline" onclick="cetakRekapSetoranRow(${i})">🖨️ Cetak</button></td>
       </tr>`;
     }
 
@@ -2882,8 +2895,27 @@
       allTrxList.sort((a,b) => (b.tgl||'').localeCompare(a.tgl||'') || (b.id||'').localeCompare(a.id||''));
       let salesOpts = '<option value="">Semua Sales</option>';
       (settings.salesList||[]).forEach(s => { salesOpts += `<option value="${esc(s)}">${esc(s)}</option>`; });
-      document.getElementById('contentArea').innerHTML = `<div class="filter-bar"><input id="trxSearch" class="form-control" placeholder="🔍 Cari ID/pelanggan…" oninput="filterTrx()" style="min-width:160px"><select id="trxFilterStatus" class="form-control" onchange="filterTrx()"><option value="">Semua Status</option><option value="cod">COD</option><option value="transfer">Transfer</option><option value="qris">QRIS</option><option value="belumtransfer">Belum Transfer</option></select><select id="trxFilterSales" class="form-control" onchange="filterTrx()">${salesOpts}</select><button class="btn btn-sm btn-outline" onclick="exportExcelTransaksi(document.getElementById('trxSearch').value?null:localDateStr())" style="font-size:0.7rem;white-space:nowrap">📥 Excel</button><button class="btn btn-sm btn-ghost" onclick="showEditLog()" style="font-size:0.7rem;white-space:nowrap">📋 Log Edit</button></div><div class="card" style="padding:0;overflow:hidden"><div class="tw-scroll-toolbar"><span>Geser tabel</span><button type="button" class="tw-scroll-arrow" onclick="document.getElementById('trxTableWrap').scrollBy({left:-140,behavior:'smooth'})" aria-label="Geser ke kiri"><i class="fas fa-chevron-left"></i></button><button type="button" class="tw-scroll-arrow" onclick="document.getElementById('trxTableWrap').scrollBy({left:140,behavior:'smooth'})" aria-label="Geser ke kanan"><i class="fas fa-chevron-right"></i></button></div><div class="table-wrap" id="trxTableWrap"><table><thead><tr><th>ID</th><th>Tgl</th><th>Customer</th><th>Sales</th><th>Gross</th><th>Diskon</th><th>Nett</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="trxTbody"></tbody></table></div><div id="trxPaginationBar"></div></div>`;
+      document.getElementById('contentArea').innerHTML = `<div class="tx">
+        <div class="tx-hero">
+          <div class="tx-hero-top"><div><div class="tx-eyebrow"><i class="fas fa-list"></i> Transaksi</div><div class="tx-hero-sub" id="txHeroCount">0 transaksi</div></div><div class="tx-hero-actions"><button class="tx-hbtn" onclick="exportExcelTransaksi(document.getElementById('trxSearch').value?null:localDateStr())"><i class="fas fa-file-excel"></i> Excel</button><button class="tx-hbtn" onclick="showEditLog()"><i class="fas fa-clock-rotate-left"></i> Log Edit</button></div></div>
+          <div class="tx-hero-val" id="txHeroTotal">Rp 0</div>
+          <div class="tx-hero-lbl">Total Nett Hari Ini</div>
+          <div class="tx-stats" id="txStats"></div>
+        </div>
+        <div class="tx-filter"><div class="tx-search"><i class="fas fa-magnifying-glass"></i><input id="trxSearch" class="form-control" placeholder="Cari ID / pelanggan…" oninput="filterTrx()"></div><select id="trxFilterStatus" class="form-control" onchange="filterTrx()"><option value="">Semua Status</option><option value="cod">COD</option><option value="transfer">Transfer</option><option value="qris">QRIS</option><option value="belumtransfer">Belum Transfer</option></select><select id="trxFilterSales" class="form-control" onchange="filterTrx()">${salesOpts}</select></div>
+        <div class="card tx-card" style="padding:0;overflow:hidden"><div class="tw-scroll-toolbar"><span>Geser tabel</span><button type="button" class="tw-scroll-arrow" onclick="document.getElementById('trxTableWrap').scrollBy({left:-140,behavior:'smooth'})" aria-label="Geser ke kiri"><i class="fas fa-chevron-left"></i></button><button type="button" class="tw-scroll-arrow" onclick="document.getElementById('trxTableWrap').scrollBy({left:140,behavior:'smooth'})" aria-label="Geser ke kanan"><i class="fas fa-chevron-right"></i></button></div><div class="table-wrap" id="trxTableWrap"><table class="tx-table"><thead><tr><th>ID</th><th>Tgl</th><th>Customer</th><th>Sales</th><th>Gross</th><th>Diskon</th><th>Nett</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="trxTbody"></tbody></table></div><div id="trxPaginationBar"></div></div>
+        </div>`;
       renderTrxTable();
+    }
+    function _txUpdateHero() {
+      // Banner HANYA menampilkan data transaksi tanggal hari ini (tidak ikut filter/pencarian)
+      const list = allTrxList.filter(t => (t.tgl||'').substring(0,10) === localDateStr());
+      const tot = list.reduce((a,t)=>a+(t.nett||0),0);
+      const el = document.getElementById('txHeroTotal'); if (el) el.textContent = fmtRp(tot);
+      const c = document.getElementById('txHeroCount'); if (c) c.textContent = list.length + ' transaksi · ' + fmtDate(localDateStr());
+      const st = document.getElementById('txStats'); if (!st) return;
+      const defs = [['cod','COD','fa-hand-holding-usd'],['transfer','Transfer','fa-university'],['qris','QRIS','fa-qrcode'],['belumTransfer','Belum','fa-clock']];
+      st.innerHTML = defs.map(([k,l,ic]) => { const rows = list.filter(t => t.status === k); return `<div class="tx-stat-i ${k}"><i class="fas ${ic}"></i><div><b>${rows.length}</b><span>${l}</span></div></div>`; }).join('');
     }
     function filterTrx() {
       const q = (document.getElementById('trxSearch')?.value || '').toLowerCase(), st = (document.getElementById('trxFilterStatus')?.value || '').toLowerCase().replace(/\s/g,''), salesFilter = (document.getElementById('trxFilterSales')?.value || '').toLowerCase().trim();
@@ -2916,7 +2948,7 @@
     }
     function pgGoto(key, page) { _pgState[key] = page; const fn = window['_pgRerender_' + key]; if (typeof fn === 'function') fn(); }
 
-    function renderTrxTable(filtered = allTrxList, _pgKeep = false) { const tb = document.getElementById('trxTbody'); if (!tb) return; if (!_pgKeep) pgReset('trx'); window._pgRerender_trx = () => renderTrxTable(filtered, true); if (!filtered.length) { tb.innerHTML = '<tr><td colspan="9" class="text-center text-sm" style="padding:32px">Tidak ada transaksi</td></tr>'; const pb0 = document.getElementById('trxPaginationBar'); if (pb0) pb0.innerHTML = ''; return; } const _pg = pgSlice(filtered, 'trx', 25); const pb = document.getElementById('trxPaginationBar'); if (pb) pb.innerHTML = pgBar('trx', _pg.page, _pg.totalPages, _pg.total, _pg.pageSize); const _isAdmin = currentUser?.role === 'admin'; tb.innerHTML = _pg.items.map(t => `<tr><td style="font-family:var(--mono);font-size:11px;color:var(--biru);font-weight:700">${esc(t.id)}</td><td>${fmtDate(t.tgl)}</td><td>${esc(t.customer||'-')}</td><td>${esc(t.sales||'-')}</td><td style="font-family:var(--mono);font-size:12px">${fmtRp(t.gross)}</td><td style="color:var(--merah);font-family:var(--mono);font-size:12px">${fmtRp(t.diskon)}</td><td class="fw-bold" style="font-family:var(--mono);font-size:12px;color:var(--biru)">${fmtRp(t.nett)}</td><td><select class="form-control" style="font-size:0.65rem;padding:2px 4px;min-width:80px" onchange="updateTrxStatus('${esc(t.id).replace(/'/g,"\\'")}', this.value)"><option value="cod" ${t.status==='cod'?'selected':''}>COD</option><option value="transfer" ${t.status==='transfer'?'selected':''}>Transfer</option><option value="qris" ${t.status==='qris'?'selected':''}>QRIS</option><option value="belumTransfer" ${t.status==='belumTransfer'?'selected':''}>Belum</option></select></td><td style="display:flex;gap:3px"><button class="btn btn-sm btn-primary" onclick="cetakUlangStruk('${esc(t.id).replace(/'/g,"\\'")}')">🧾 Cetak</button>${_isAdmin ? `<button class="btn btn-sm btn-outline" onclick="editTrx('${esc(t.id).replace(/'/g,"\\'")}')">✏️</button>` : ''}<button class="btn btn-sm btn-danger" onclick="deleteTrx('${esc(t.id).replace(/'/g,"\\'")}')">🗑</button></td></tr>`).join(''); }
+    function renderTrxTable(filtered = allTrxList, _pgKeep = false) { const tb = document.getElementById('trxTbody'); if (!tb) return; try { _txUpdateHero(filtered); } catch(e) {} if (!_pgKeep) pgReset('trx'); window._pgRerender_trx = () => renderTrxTable(filtered, true); if (!filtered.length) { tb.innerHTML = '<tr><td colspan="9" class="text-center text-sm" style="padding:32px">Tidak ada transaksi</td></tr>'; const pb0 = document.getElementById('trxPaginationBar'); if (pb0) pb0.innerHTML = ''; return; } try { _txUpdateHero(filtered); } catch(e) {} const _pg = pgSlice(filtered, 'trx', 25); const pb = document.getElementById('trxPaginationBar'); if (pb) pb.innerHTML = pgBar('trx', _pg.page, _pg.totalPages, _pg.total, _pg.pageSize); const _isAdmin = currentUser?.role === 'admin'; tb.innerHTML = _pg.items.map(t => `<tr class="tx-row st-${esc(t.status||'')}"><td data-label="ID" class="tx-id">${esc(t.id)}</td><td data-label="Tanggal" class="tx-tgl">${fmtDate(t.tgl)}</td><td data-label="Customer" class="tx-cust">${esc(t.customer||'-')}</td><td data-label="Sales" class="tx-sales">${esc(t.sales||'-')}</td><td data-label="Gross" class="tx-num">${fmtRp(t.gross)}</td><td data-label="Diskon" class="tx-num tx-disc">${fmtRp(t.diskon)}</td><td data-label="Nett" class="tx-nett">${fmtRp(t.nett)}</td><td data-label="Status" class="tx-stat"><select class="form-control tx-sel" onchange="updateTrxStatus('${esc(t.id).replace(/'/g,"\\'")}', this.value)"><option value="cod" ${t.status==='cod'?'selected':''}>COD</option><option value="transfer" ${t.status==='transfer'?'selected':''}>Transfer</option><option value="qris" ${t.status==='qris'?'selected':''}>QRIS</option><option value="belumTransfer" ${t.status==='belumTransfer'?'selected':''}>Belum</option></select></td><td data-label="" class="tx-act"><button class="btn btn-sm btn-primary" onclick="cetakUlangStruk('${esc(t.id).replace(/'/g,"\\'")}')">🧾 Cetak</button>${_isAdmin ? `<button class="btn btn-sm btn-outline" onclick="editTrx('${esc(t.id).replace(/'/g,"\\'")}')">✏️</button>` : ''}<button class="btn btn-sm btn-danger" onclick="deleteTrx('${esc(t.id).replace(/'/g,"\\'")}')">🗑</button></td></tr>`).join(''); }
 
     async function cetakUlangStruk(id) {
       let trx = allTrxList.find(t => t.id === id);
@@ -4106,21 +4138,25 @@
         { val:'belum_transfer',       label:'Belum Transfer' },
         { val:'laporan_per_sales',    label:'Laporan per Sales' },
       ].map(o => `<option value="${o.val}" ${_rekapJenis===o.val?'selected':''}>${o.label}</option>`).join('');
-      document.getElementById('contentArea').innerHTML = `
-        <div class="card">
-          <div class="card-title"><i class="fas fa-chart-bar"></i> Laporan</div>
+      document.getElementById('contentArea').innerHTML = `<div class="rk">
+        <div class="rk-hero">
+          <div class="rk-hero-top"><div><div class="rk-eyebrow"><i class="fas fa-chart-bar"></i> Rekap Penjualan</div><div class="rk-hero-sub" id="rkHeroSub">Pilih laporan lalu tekan Tampilkan</div></div>
+            <div class="rk-hero-actions"><button class="rk-hbtn" onclick="showRekapStrukModal()"><i class="fas fa-print"></i> Cetak</button><button class="rk-hbtn" onclick="exportExcelRekap(document.getElementById('rekapJenis').value,document.getElementById('rekapTgl').value,document.getElementById('rekapSales').value)"><i class="fas fa-file-excel"></i> Excel</button></div></div>
+          <div class="rk-hero-val" id="rkHeroVal">Rp 0</div>
+          <div class="rk-hero-lbl" id="rkHeroLbl">Total Nett</div>
+        </div>
+        <div class="rk-panel">
           <div class="form-group"><label>Jenis Laporan</label>
             <select id="rekapJenis" onchange="_rekapJenis=this.value">${jenisOpts}</select>
           </div>
-          <div class="flex-row" style="flex-wrap:wrap;gap:8px;">
-            <div class="form-group col-1" style="margin:0"><label>Tanggal</label><input type="date" id="rekapTgl"></div>
-            <div class="form-group col-1" style="margin:0"><label>Sales</label><select id="rekapSales">${sOpts}</select></div>
-            <button class="btn btn-primary" onclick="doRekap()" style="height:44px;align-self:flex-end">📊 Tampilkan</button>
-            <button class="btn btn-outline" onclick="showRekapStrukModal()" style="height:44px;align-self:flex-end;font-size:0.72rem">🖨️ Cetak</button>
-            <button class="btn btn-outline" onclick="exportExcelRekap(document.getElementById('rekapJenis').value,document.getElementById('rekapTgl').value,document.getElementById('rekapSales').value)" style="height:44px;align-self:flex-end;font-size:0.72rem">📥 Excel</button>
+          <div class="rk-row">
+            <div class="form-group"><label>Tanggal</label><input type="date" id="rekapTgl"></div>
+            <div class="form-group"><label>Sales</label><select id="rekapSales">${sOpts}</select></div>
           </div>
+          <button class="rk-go" onclick="doRekap()"><i class="fas fa-chart-pie"></i> Tampilkan Laporan</button>
         </div>
-        <div id="rekapContent"><div class="text-center text-sm" style="padding:40px">Pilih laporan &amp; filter lalu klik Tampilkan</div></div>`;
+        <div id="rekapContent"><div class="rk-empty"><i class="fas fa-chart-simple"></i><div>Pilih laporan &amp; filter lalu klik Tampilkan</div></div></div>
+        </div>`;
       document.getElementById('rekapTgl').value = localDateStr();
       document.getElementById('rekapJenis').value = _rekapJenis;
     }
@@ -4146,8 +4182,15 @@
       let filtered = allTrxList.filter(t => (t.tgl||'').substring(0,10) === tgl);
       if (salesFilter) filtered = filtered.filter(t => (t.sales||'').toLowerCase().trim() === salesFilter.toLowerCase().trim());
 
+      const _rkSet = (list) => { try {
+        const v = document.getElementById('rkHeroVal'), sb = document.getElementById('rkHeroSub'), lb = document.getElementById('rkHeroLbl');
+        if (v) v.textContent = fmtRp(list.reduce((a,t)=>a+(t.nett||0),0));
+        if (sb) sb.textContent = list.length + ' transaksi · ' + fmtDate(tgl) + (salesFilter ? ' · ' + salesFilter : ' · Semua Sales');
+        if (lb) lb.textContent = 'Total Nett';
+      } catch(e) {} };
+      _rkSet(filtered);
       if (!filtered.length) {
-        document.getElementById('rekapContent').innerHTML = '<div class="card"><p class="text-center text-sm">Tidak ada transaksi pada tanggal ini</p></div>';
+        document.getElementById('rekapContent').innerHTML = '<div class="rk-empty"><i class="fas fa-inbox"></i><div>Tidak ada transaksi pada tanggal ini</div></div>';
         return;
       }
 
@@ -4501,12 +4544,28 @@
     }
 
     // ========== REKAP INPUT (dengan tabel detail bisa edit qty & status) ==========
-    async function loadRekapInput() { const today = localDateStr(); document.getElementById('contentArea').innerHTML = `<div class="card"><div class="flex-row mb-2"><div class="form-group col-1"><label>Tanggal</label><input type="date" id="rekapInputTgl" value="${today}"></div><button class="btn btn-primary" onclick="doRekapInput()" style="height:44px;align-self:flex-end">📊 Tampilkan</button></div></div><div id="rekapInputContent"><div class="text-center text-sm" style="padding:40px">Pilih tanggal lalu klik Tampilkan</div></div>`; await syncStockHistoryFromGAS(); doRekapInput(); }
+    async function loadRekapInput() { const today = localDateStr(); document.getElementById('contentArea').innerHTML = `<div class="ri">
+        <div class="ri-hero">
+          <div class="ri-eyebrow"><i class="fas fa-clipboard-list"></i> Rekap Input Barang</div>
+          <div class="ri-hero-sub" id="riHeroSub">Pilih tanggal lalu tekan Tampilkan</div>
+          <div class="ri-hero-val" id="riHeroVal">Rp 0</div>
+          <div class="ri-hero-lbl">Total Kiriman + Titipan</div>
+          <div class="ri-chips"><div class="ri-chip"><i class="fas fa-boxes"></i><div><span>Kiriman</span><b id="riKir">Rp 0</b></div></div><div class="ri-chip"><i class="fas fa-hand-holding-box"></i><div><span>Titipan</span><b id="riTit">Rp 0</b></div></div></div>
+        </div>
+        <div class="ri-panel"><div class="ri-row"><div class="form-group"><label>Tanggal</label><input type="date" id="rekapInputTgl" value="${today}"></div><button class="ri-go" onclick="doRekapInput()"><i class="fas fa-chart-pie"></i> Tampilkan</button></div></div>
+        <div id="rekapInputContent"><div class="rk-empty"><i class="fas fa-chart-simple"></i><div>Pilih tanggal lalu klik Tampilkan</div></div></div></div>`; await syncStockHistoryFromGAS(); doRekapInput(); }
     function doRekapInput() { const tgl = document.getElementById('rekapInputTgl').value; if (!tgl) return Swal.fire('Error','Pilih tanggal','error'); const filtered = stockInHistory.filter(s => (s.date||s.tgl||'').substring(0,10) === tgl); const data = hitungRekapLokal(filtered); renderRekapInput(data); // tambahkan tabel detail dengan fitur edit
       document.getElementById('rekapInputContent').innerHTML += buildStockDetailTableEditable(filtered);
     }
     function hitungRekapLokal(list) { const driverMap = {}; list.forEach(entry => { const driver = entry.driver || '', rit = entry.rit || '', status = (entry.status||'').toLowerCase(), sku = entry.sku || '', qty = entry.qty || 0, hargaModal = entry.hargaModal || 0, disc = entry.disc || 0, netModalPerItem = hargaModal - disc, totalRp = qty * netModalPerItem; if (!driver || !rit || !sku || qty === 0) return; if (!driverMap[driver]) driverMap[driver] = {}; if (!driverMap[driver][rit]) driverMap[driver][rit] = { totalRp: 0, kiriman: { totalRp: 0, items: {} }, titipan: { totalRp: 0, items: {} } }; driverMap[driver][rit].totalRp += totalRp; if (status === 'kiriman') { driverMap[driver][rit].kiriman.totalRp += totalRp; driverMap[driver][rit].kiriman.items[sku] = (driverMap[driver][rit].kiriman.items[sku]||0) + qty; } else if (status === 'titipan') { driverMap[driver][rit].titipan.totalRp += totalRp; driverMap[driver][rit].titipan.items[sku] = (driverMap[driver][rit].titipan.items[sku]||0) + qty; } }); const rekap = [], kiriman = [], titipan = [], kirimanQty = [], titipanQty = []; for (const d in driverMap) { for (const r in driverMap[d]) { const entry = driverMap[d][r]; rekap.push({ driver: d, rit: r, total: entry.totalRp }); if (entry.kiriman.totalRp > 0) { kiriman.push({ driver: d, rit: r, total: entry.kiriman.totalRp }); for (const sku in entry.kiriman.items) kirimanQty.push({ driver: d, rit: r, sku, qty: entry.kiriman.items[sku] }); } if (entry.titipan.totalRp > 0) { titipan.push({ driver: d, rit: r, total: entry.titipan.totalRp }); for (const sku in entry.titipan.items) titipanQty.push({ driver: d, rit: r, sku, qty: entry.titipan.items[sku] }); } } } const sum = arr => arr.reduce((s,x)=>s+x.total,0); return { rekap, grandRekap: sum(rekap), kiriman, grandKiriman: sum(kiriman), titipan, grandTitipan: sum(titipan), kirimanQty, titipanQty }; }
-    function renderRekapInput(data) { let h = buildRekapTable('TOTAL Kiriman + Titipan (Rp)', data.rekap, data.grandRekap) + buildRekapTable('TOTAL KIRIMAN (Rp)', data.kiriman, data.grandKiriman) + buildRekapTable('TOTAL TITIPAN (Rp)', data.titipan, data.grandTitipan) + buildQtyTable('TOTAL KIRIMAN (QTY)', data.kirimanQty) + buildQtyTable('TOTAL TITIPAN (QTY)', data.titipanQty); document.getElementById('rekapInputContent').innerHTML = h || '<p class="text-center text-sm">Belum ada data input barang.</p>'; }
+    function _riUpdateHero(data) { try {
+      const tgl = document.getElementById('rekapInputTgl')?.value;
+      const v = document.getElementById('riHeroVal'); if (v) v.textContent = fmtRp(data.grandRekap || 0);
+      const k = document.getElementById('riKir'); if (k) k.textContent = fmtRp(data.grandKiriman || 0);
+      const t = document.getElementById('riTit'); if (t) t.textContent = fmtRp(data.grandTitipan || 0);
+      const sb = document.getElementById('riHeroSub'); if (sb) sb.textContent = fmtDate(tgl);
+    } catch(e) {} }
+    function renderRekapInput(data) { _riUpdateHero(data); let h = buildRekapTable('TOTAL Kiriman + Titipan (Rp)', data.rekap, data.grandRekap) + buildRekapTable('TOTAL KIRIMAN (Rp)', data.kiriman, data.grandKiriman) + buildRekapTable('TOTAL TITIPAN (Rp)', data.titipan, data.grandTitipan) + buildQtyTable('TOTAL KIRIMAN (QTY)', data.kirimanQty) + buildQtyTable('TOTAL TITIPAN (QTY)', data.titipanQty); document.getElementById('rekapInputContent').innerHTML = h || '<p class="text-center text-sm">Belum ada data input barang.</p>'; }
     function buildRekapTable(title, rows, grandTotal) { let html = `<div class="card"><div class="card-title"><i class="fas fa-table"></i> ${title}</div><div class="table-wrap"><table><thead><tr><th>Driver</th><th>Rit</th><th>Total</th></tr></thead><tbody>`; if (!rows || !rows.length) html += '<tr><td colspan="3" class="text-center text-sm">Tidak ada data</td></tr>'; else { rows.forEach(row => { html += `<tr><td>${esc(row.driver)}</td><td>${esc(row.rit)}</td><td style="text-align:right;font-family:var(--mono)">${fmtRp(row.total)}</td></tr>`; }); if (grandTotal !== undefined) html += `<tr style="font-weight:700;background:var(--biru-muda)"><td colspan="2">Grand Total</td><td style="text-align:right;font-family:var(--mono);color:var(--biru)">${fmtRp(grandTotal)}</td></tr>`; } html += '</tbody></table></div></div>'; return html; }
     function buildQtyTable(title, rows) { let html = `<div class="card"><div class="card-title"><i class="fas fa-list"></i> ${title}</div><div class="table-wrap"><table><thead><tr><th>Driver</th><th>Rit</th><th>SKU</th><th>Qty</th></tr></thead><tbody>`; if (!rows || !rows.length) html += '<tr><td colspan="4" class="text-center text-sm">Tidak ada data</td></tr>'; else rows.forEach(row => { html += `<tr><td>${esc(row.driver)}</td><td>${esc(row.rit)}</td><td>${esc(row.sku)}</td><td>${row.qty}</td></tr>`; }); html += '</tbody></table></div></div>'; return html; }
     // Tabel detail input barang dengan edit qty dan status (mirip dengan di halaman Input Barang)
