@@ -1677,36 +1677,20 @@
     // [NEW] Detail per sales & customer saat kotak ringkasan dashboard (COD/Transfer/QRIS/Belum Bayar) diklik.
     // Data diambil dari allTrxList (sumber yang sama dengan menu Rekap), difilter hari ini + status terkait.
     function showDashboardStatusDetail(status) {
-      const _dn = new Date(); const today = _dn.getFullYear()+'-'+String(_dn.getMonth()+1).padStart(2,'0')+'-'+String(_dn.getDate()).padStart(2,'0');
+      const today = localDateStr();
       const todayTx = allTrxList.filter(t => (t.tgl||'').substring(0,10) === today && t.status === status);
-      const labelMap = { cod:'💰 COD', transfer:'🏦 Transfer', qris:'📱 QRIS', belumTransfer:'⏰ Belum Bayar' };
+      const meta = { cod:{l:'COD', ic:'fa-hand-holding-dollar', tone:'cod'}, transfer:{l:'Transfer', ic:'fa-building-columns', tone:'transfer'}, qris:{l:'QRIS', ic:'fa-qrcode', tone:'qris'}, belumTransfer:{l:'Belum Bayar', ic:'fa-clock', tone:'belum'} }[status] || {l:status, ic:'fa-receipt', tone:''};
       const grouped = {};
-      todayTx.forEach(t => { const s = t.sales || '—'; if (!grouped[s]) grouped[s] = []; grouped[s].push(t); });
-      const salesNames = Object.keys(grouped).sort();
-      const accentMap = { cod:'#F59E0B', transfer:'#1A6DB5', qris:'#6366F1', belumTransfer:'#EF4444' };
-      const accent = accentMap[status] || '#1A6DB5';
-      let grandTotal = 0, html = '';
-      if (salesNames.length === 0) {
-        html = `<div style="padding:24px 10px;text-align:center;color:var(--text3)"><div style="font-size:2rem;margin-bottom:6px">🗒️</div><div style="font-size:0.8rem">Tidak ada transaksi</div></div>`;
-      } else {
-        salesNames.forEach(s => {
-          const rows = grouped[s];
-          const subtotal = rows.reduce((sum,t) => sum + (t.nett||0), 0);
-          grandTotal += subtotal;
-          html += `<div style="background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:12px;overflow:hidden;text-align:left">
-            <div style="background:linear-gradient(135deg, ${accent}, ${accent}cc);padding:8px 12px;display:flex;align-items:center;gap:8px">
-              <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">${esc(s).charAt(0).toUpperCase()}</div>
-              <div style="font-weight:700;color:#fff;font-size:0.8rem">${esc(s)}</div>
-            </div>
-            <div style="padding:4px 12px 8px">
-              ${rows.map(t => `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #E7EEF3;font-size:0.75rem"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.customer||'-')}</span><span style="font-family:var(--mono);font-weight:700;white-space:nowrap">${fmtRp(t.nett||0)}</span></div>`).join('')}
-              <div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-weight:800;font-size:0.8rem;color:${accent}"><span>Subtotal</span><span>${fmtRp(subtotal)}</span></div>
-            </div>
-          </div>`;
-        });
-        html += `<div style="margin-top:2px;padding:12px 16px;border-radius:14px;background:linear-gradient(135deg,#00509E,#00A8E8);color:#fff;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:0.9rem;box-shadow:0 6px 16px rgba(0,80,158,.28)"><span>Total</span><span>${fmtRp(grandTotal)}</span></div>`;
-      }
-      Swal.fire({ title: (labelMap[status]||status) + ' Hari Ini', html, width:'440px', background:'#F4F8FB', showConfirmButton:true, customClass: { popup: 'dash-status-popup' } });
+      todayTx.forEach(t => { const k = t.sales || '—'; (grouped[k] = grouped[k] || []).push(t); });
+      let grand = 0;
+      const secs = Object.keys(grouped).sort().map(k => {
+        const rows = grouped[k].map(t => ({ n:esc(t.customer||'-'), sub: esc(t.id||''), q:fmtRp(t.nett||0) }));
+        const sub = grouped[k].reduce((a,t)=>a+(t.nett||0),0); grand += sub;
+        return { title:'<i class="fas fa-user-tie"></i> '+esc(k), badge:grouped[k].length+' transaksi', rows, total:{ l:'Subtotal', v:fmtRp(sub) } };
+      });
+      _dxPop({ icon:meta.ic, tone:meta.tone, title:meta.l+' Hari Ini', sub:esc(fmtDate(today)),
+        stats:[{ l:'Total Nett', v:fmtRp(grand) }, { l:'Transaksi', v:todayTx.length }, { l:'Sales', v:secs.length }],
+        sections: secs.length ? secs : [{ rows:[] }] });
     }
 
     // [NEW] Detail Kiriman/Titipan saat card di dashboard Driver diklik - mirip pola
@@ -1714,35 +1698,15 @@
     // barang), dikelompokkan per SKU/nama barang, bukan per sales.
     function showDashboardDriverStatusDetail(status) {
       const today = localDateStr();
-      const myStock = stockInHistory.filter(s =>
+      const my = stockInHistory.filter(s =>
         (s.date||s.tgl||'').substring(0,10) === today &&
         (s.driver||'').toLowerCase() === (currentUser?.name||'').toLowerCase() &&
-        (s.status||'') === status
-      );
-      const labelMap = { kiriman: '📦 Kiriman', titipan: '🤲 Titipan' };
-      const accent = status === 'kiriman' ? '#F59E0B' : '#1A6DB5';
-      let grandTotal = 0, html = '';
-      if (myStock.length === 0) {
-        html = `<div style="padding:24px 10px;text-align:center;color:var(--text3)"><div style="font-size:2rem;margin-bottom:6px">🗒️</div><div style="font-size:0.8rem">Tidak ada data</div></div>`;
-      } else {
-        html += `<div style="background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,0.07);overflow:hidden;text-align:left">
-          <div style="background:linear-gradient(135deg, ${accent}, ${accent}cc);padding:8px 12px">
-            <div style="font-weight:700;color:#fff;font-size:0.8rem">${esc(currentUser.name)}</div>
-          </div>
-          <div style="padding:4px 12px 8px">
-            ${myStock.map(s => {
-              const net = (s.qty||0) * ((s.hargaModal||0) - (s.disc||0));
-              grandTotal += net;
-              return `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #E7EEF3;font-size:0.75rem">
-                <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.nama||s.sku||'-')} <span style="color:#94A3B8">&times;${s.qty||0}</span></span>
-                <span style="font-family:var(--mono);font-weight:700;white-space:nowrap">${fmtRp(net)}</span>
-              </div>`;
-            }).join('')}
-            <div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-weight:800;font-size:0.8rem;color:${accent}"><span>Subtotal</span><span>${fmtRp(grandTotal)}</span></div>
-          </div>
-        </div>`;
-      }
-      Swal.fire({ title: (labelMap[status]||status) + ' Hari Ini', html, width:'440px', background:'#F4F8FB', showConfirmButton:true, customClass: { popup: 'dash-status-popup' } });
+        (s.status||'') === status);
+      let tq = 0, tn = 0;
+      const rows = my.map(s => { const n=(s.qty||0)*((s.hargaModal||0)-(s.disc||0)); tq+=(s.qty||0); tn+=n; return { n:esc(s.nama||s.sku||'-'), sub: s.rit?('Rit '+esc(String(s.rit))):'', q:(s.qty||0)+' pcs', v:fmtRp(n) }; });
+      _dxPop({ icon: status==='titipan'?'fa-hand-holding-box':'fa-boxes', tone: status==='titipan'?'titipan':'', title:(status==='titipan'?'Titipan':'Kiriman')+' Hari Ini', sub: esc(currentUser?.name||'')+' · '+esc(fmtDate(today)),
+        stats:[{ l:'Nilai Modal', v:fmtRp(tn) }, { l:'Total Qty', v:tq+' pcs' }, { l:'Item', v:rows.length }],
+        sections:[{ title:'<i class="fas fa-truck"></i> '+esc(currentUser?.name||''), badge:rows.length+' item', rows, total:{ l:'Total '+tq+' pcs', v:fmtRp(tn) } }] });
     }
 
     // [NEW] Detail Total Piutang Belum Bayar saat card di dashboard diklik.
@@ -1795,34 +1759,50 @@
           </div>
         </div>`;
     }
-    function _dxCard(title, rightTxt, body, accent) {
-      accent = accent || '#0078D4';
-      return `<div style="background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:10px;overflow:hidden;text-align:left">
-        <div style="background:linear-gradient(135deg,${accent},#29A8FF);padding:8px 12px;display:flex;align-items:center;gap:8px">
-          <div style="font-weight:700;color:#fff;font-size:.8rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</div>
-          <span style="background:rgba(255,255,255,.25);color:#fff;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700;white-space:nowrap">${rightTxt}</span>
-        </div><div style="padding:8px 12px;color:#0F2A4A">${body}</div></div>`;
-    }
-    function _dxLine(l, r, bold) {
-      return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:.75rem;padding:2px 0;${bold?'font-weight:800;color:#0067B8;':''}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${l}</span><span style="white-space:nowrap">${r}</span></div>`;
-    }
-    function _dxSwal(title, html) {
-      Swal.fire({ title, html: `<div style="max-height:62vh;overflow:auto;padding:2px">${html}</div>`, showConfirmButton:true, confirmButtonText:'Tutup', confirmButtonColor:'#0078D4', width:Math.min(520, window.innerWidth-24) });
+    // ===== Popup detail dashboard (desain azure: banner, kartu ringkas, daftar rapi) =====
+    function _dxPop(o) {
+      const stats = (o.stats||[]).map(x => `<div class="dxp-stat"><div class="dxp-stat-v">${x.v}</div><div class="dxp-stat-l">${x.l}</div></div>`).join('');
+      const secs = (o.sections||[]).map(sec => {
+        const rows = (sec.rows||[]).map((r,i) => `<div class="dxp-row">
+            <div class="dxp-no">${i+1}</div>
+            <div class="dxp-main"><div class="dxp-name">${r.n}</div>${r.sub?`<div class="dxp-sub">${r.sub}</div>`:''}</div>
+            <div class="dxp-val"><span class="dxp-pill">${r.q}</span>${r.v?`<span class="dxp-amt">${r.v}</span>`:''}</div>
+          </div>`).join('');
+        return `<div class="dxp-sec ${sec.tone||''}">
+          ${sec.title ? `<div class="dxp-sec-h"><span>${sec.title}</span>${sec.badge?`<em>${sec.badge}</em>`:''}</div>` : ''}
+          <div class="dxp-rows">${rows || '<div class="dxp-empty">Tidak ada data</div>'}</div>
+          ${sec.total ? `<div class="dxp-total"><span>${sec.total.l}</span><b>${sec.total.v}</b></div>` : ''}
+        </div>`;
+      }).join('');
+      Swal.fire({
+        html: `<div class="dxp ${o.tone?'t-'+o.tone:''}">
+          <div class="dxp-head"><div class="dxp-ic"><i class="fas ${o.icon||'fa-chart-pie'}"></i></div>
+            <div class="dxp-ht"><div class="dxp-title">${o.title}</div><div class="dxp-hs">${o.sub||''}</div></div>
+            <button type="button" class="dxp-x" onclick="Swal.close()" aria-label="Tutup"><i class="fas fa-xmark"></i></button></div>
+          ${stats ? `<div class="dxp-stats">${stats}</div>` : ''}
+          <div class="dxp-body">${secs}${o.footer?`<div class="dxp-foot">${o.footer}</div>`:''}</div></div>`,
+        showConfirmButton:false, padding:0, width:Math.min(480, window.innerWidth-20), customClass:{ popup:'dxp-popup', htmlContainer:'dxp-hc' }
+      });
     }
     function showDxRekapInput() {
-      const inp = _dxInputToday(_dxToday());
-      if (!inp.length) return _dxSwal('Rekap Input Hari Ini', '<div style="padding:24px;text-align:center;color:#6B84A0;font-size:.8rem">Belum ada input hari ini</div>');
+      const today = _dxToday();
+      const inp = _dxInputToday(today);
       const g = {};
+      let tq = 0, tn = 0;
       inp.forEach(s => {
         const k = (s.driver||'—') + '|' + (s.rit||'') + '|' + (s.status||'');
-        if (!g[k]) g[k] = { driver:s.driver||'—', rit:s.rit, status:s.status, items:[], qty:0, net:0 };
-        g[k].items.push(s); g[k].qty += (s.qty||0); g[k].net += (s.qty||0)*((s.hargaModal||0)-(s.disc||0));
+        if (!g[k]) g[k] = { driver:s.driver||'—', rit:s.rit, status:s.status, rows:[], qty:0, net:0 };
+        const n = (s.qty||0)*((s.hargaModal||0)-(s.disc||0));
+        g[k].rows.push({ n:esc(s.nama||s.sku||'—'), q:(s.qty||0)+' pcs', v:fmtRp(n) });
+        g[k].qty += (s.qty||0); g[k].net += n; tq += (s.qty||0); tn += n;
       });
-      _dxSwal('Rekap Input Hari Ini', Object.values(g).map(x => _dxCard(
-        esc(x.driver) + (x.rit ? ' · Rit '+esc(String(x.rit)) : ''),
-        x.status==='titipan'?'Titipan':'Kiriman',
-        x.items.map(s => _dxLine(esc(s.nama||s.sku||'—'), (s.qty||0)+' pcs')).join('') + _dxLine('Total '+x.qty+' pcs', fmtRp(x.net), true),
-        x.status==='titipan'?'#7C3AED':'#0078D4')).join(''));
+      const secs = Object.values(g).map(x => ({
+        title: '<i class="fas fa-truck"></i> ' + esc(x.driver) + (x.rit ? ' · Rit '+esc(String(x.rit)) : ''),
+        badge: x.status==='titipan' ? 'Titipan' : 'Kiriman', tone: x.status==='titipan' ? 'ungu' : '',
+        rows: x.rows, total: { l:'Total '+x.qty+' pcs', v:fmtRp(x.net) } }));
+      _dxPop({ icon:'fa-boxes', title:'Rekap Input Hari Ini', sub: esc(fmtDate(today)),
+        stats: [{ l:'Nilai Modal', v:fmtRp(tn) }, { l:'Total Qty', v:tq+' pcs' }, { l:'Input', v:Object.keys(g).length }],
+        sections: secs });
     }
     function showDxSkuDetail(name) {
       const today = _dxToday(), per = {};
@@ -1833,62 +1813,39 @@
         const n = (it.qty||0)*((it.harga||0)-(it.discRpPer||0));
         per[c].qty += (it.qty||0); per[c].nett += n; tq += (it.qty||0); tn += n;
       }));
-      const rows = Object.entries(per).sort((a,b)=>b[1].qty-a[1].qty);
-      _dxSwal(esc(name), _dxCard('Pembeli hari ini', rows.length+' customer', rows.map(r=>_dxLine(esc(r[0]), r[1].qty+' pcs · '+fmtRp(r[1].nett))).join('') + _dxLine('Total '+tq+' pcs', fmtRp(tn), true)));
+      const rows = Object.entries(per).sort((a,b)=>b[1].qty-a[1].qty).map(r => ({ n:esc(r[0]), q:r[1].qty+' pcs', v:fmtRp(r[1].nett) }));
+      _dxPop({ icon:'fa-cube', title:esc(name), sub:'Rekap SKU · ' + esc(fmtDate(today)),
+        stats: [{ l:'Terjual', v:tq+' pcs' }, { l:'Nilai', v:fmtRp(tn) }, { l:'Customer', v:rows.length }],
+        sections: [{ title:'Pembeli hari ini', badge:rows.length+' customer', rows, total:{ l:'Total '+tq+' pcs', v:fmtRp(tn) } }] });
     }
     function showDxCustDetail(name) {
       const today = _dxToday();
       const trx = allTrxList.filter(t => (t.tgl||'').substring(0,10) === today && (t.customer||'—') === name);
-      const per = {}; let tn = 0;
-      trx.forEach(t => { tn += (t.nett||0); (t.items||[]).forEach(it => { const k = it.nama||it.sku||'—'; if (!per[k]) per[k] = { qty:0, nett:0 }; per[k].qty += (it.qty||0); per[k].nett += (it.qty||0)*((it.harga||0)-(it.discRpPer||0)); }); });
-      const rows = Object.entries(per).sort((a,b)=>b[1].qty-a[1].qty);
-      const body = (rows.length ? rows.map(r=>_dxLine(esc(r[0]), r[1].qty+' pcs · '+fmtRp(r[1].nett))).join('') : '<div style="font-size:.74rem;color:#6B84A0">Rincian item belum dimuat</div>') + _dxLine(trx.length+' transaksi', fmtRp(tn), true);
-      _dxSwal(esc(name), _dxCard('Pembelian hari ini', trx.length+' transaksi', body));
+      const per = {}; let tn = 0, tq = 0;
+      trx.forEach(t => { tn += (t.nett||0); (t.items||[]).forEach(it => { const k = it.nama||it.sku||'—'; if (!per[k]) per[k] = { qty:0, nett:0 }; per[k].qty += (it.qty||0); tq += (it.qty||0); per[k].nett += (it.qty||0)*((it.harga||0)-(it.discRpPer||0)); }); });
+      const rows = Object.entries(per).sort((a,b)=>b[1].qty-a[1].qty).map(r => ({ n:esc(r[0]), q:r[1].qty+' pcs', v:fmtRp(r[1].nett) }));
+      _dxPop({ icon:'fa-user', title:esc(name), sub:'Rekap Customer · ' + esc(fmtDate(today)),
+        stats: [{ l:'Total Nett', v:fmtRp(tn) }, { l:'Transaksi', v:trx.length }, { l:'Qty', v:tq+' pcs' }],
+        sections: [{ title:'Barang dibeli', badge:rows.length+' SKU', rows, total:{ l:trx.length+' transaksi', v:fmtRp(tn) } }] });
     }
 
     function showDashboardPiutangDetail() {
       const piutang = allTrxList.filter(t=>(t.status||'')==='belumTransfer');
       const today = localDateStr();
-      function agingLabel(tgl) {
-        const diff = Math.floor((new Date(today)-new Date(tgl))/(1000*60*60*24));
-        if (diff<=0) return {label:'Hari ini', color:'#16A34A'};
-        if (diff<=7) return {label:`${diff} hari`, color:'#D97706'};
-        if (diff<=30) return {label:`${diff} hari`, color:'#EA580C'};
-        return {label:`${diff} hari ⚠️`, color:'#DC2626'};
+      function aging(tgl) {
+        const diff = Math.floor((new Date(today)-new Date((tgl||'').substring(0,10)))/(1000*60*60*24));
+        if (diff<=0) return 'Hari ini';
+        return diff + ' hari' + (diff>30 ? ' ⚠️' : '');
       }
-      const custAgg = {};
-      piutang.forEach(t=>{
-        const c = t.customer || '—';
-        if (!custAgg[c]) custAgg[c] = { customer:c, total:0, count:0, oldest:t.tgl };
-        custAgg[c].total += (t.nett||0);
-        custAgg[c].count++;
-        if ((t.tgl||'') < custAgg[c].oldest) custAgg[c].oldest = t.tgl;
-      });
-      const custRows = Object.values(custAgg).sort((a,b)=>b.total-a.total);
-      const grandTotal = piutang.reduce((s,t)=>s+(t.nett||0),0);
-      const accent = '#EF4444';
-      let html = '';
-      if (custRows.length === 0) {
-        html = `<div style="padding:24px 10px;text-align:center;color:var(--text3)"><div style="font-size:2rem;margin-bottom:6px">🗒️</div><div style="font-size:0.8rem">Tidak ada piutang</div></div>`;
-      } else {
-        custRows.forEach(r => {
-          const ag = agingLabel(r.oldest);
-          html += `<div style="background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:12px;overflow:hidden;text-align:left">
-            <div style="background:linear-gradient(135deg, ${accent}, ${accent}cc);padding:8px 12px;display:flex;align-items:center;gap:8px">
-              <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">${esc(r.customer).charAt(0).toUpperCase()}</div>
-              <div style="font-weight:700;color:#fff;font-size:0.8rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.customer)}</div>
-              <span style="background:rgba(255,255,255,.25);color:#fff;padding:2px 7px;border-radius:6px;font-size:0.65rem;font-weight:700;white-space:nowrap">${ag.label}</span>
-            </div>
-            <div style="padding:8px 12px">
-              <div style="display:flex;justify-content:space-between;gap:8px;font-size:0.75rem;color:var(--text2)"><span>${r.count} transaksi</span></div>
-              <div style="display:flex;justify-content:space-between;padding-top:4px;font-weight:800;font-size:0.85rem;color:${accent}"><span>Total</span><span>${fmtRp(r.total)}</span></div>
-            </div>
-          </div>`;
-        });
-        html += `<div style="margin-top:2px;padding:12px 16px;border-radius:14px;background:linear-gradient(135deg,#EF4444,#DC2626);color:#fff;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:0.9rem;box-shadow:0 6px 16px rgba(220,38,38,.28)"><span>Total Piutang</span><span>${fmtRp(grandTotal)}</span></div>`;
-        html += `<div style="margin-top:10px;text-align:center"><button class="btn" onclick="Swal.close();navigateTo('piutang')" style="background:${accent};color:#fff;font-size:0.75rem;padding:7px 16px;border-radius:8px;font-weight:700">📄 Buka Halaman Piutang</button></div>`;
-      }
-      Swal.fire({ title: '📋 Total Piutang Belum Bayar', html, width:'440px', background:'#F4F8FB', showConfirmButton:true, customClass: { popup: 'dash-status-popup' } });
+      const agg = {};
+      piutang.forEach(t=>{ const c=t.customer||'—'; if(!agg[c]) agg[c]={ customer:c,total:0,count:0,oldest:t.tgl||'' }; agg[c].total+=(t.nett||0); agg[c].count++; if((t.tgl||'')<agg[c].oldest) agg[c].oldest=t.tgl; });
+      const list = Object.values(agg).sort((a,b)=>b.total-a.total);
+      const grand = piutang.reduce((a,t)=>a+(t.nett||0),0);
+      const rows = list.map(r => ({ n:esc(r.customer), sub:r.count+' transaksi · tertua '+aging(r.oldest), q:fmtRp(r.total) }));
+      _dxPop({ icon:'fa-file-invoice-dollar', tone:'belum', title:'Total Piutang', sub:'Belum bayar · semua tanggal',
+        stats:[{ l:'Total', v:fmtRp(grand) }, { l:'Transaksi', v:piutang.length }, { l:'Customer', v:list.length }],
+        sections:[{ title:'<i class="fas fa-users"></i> Per customer', badge:list.length+' customer', rows, total:{ l:'Total Piutang', v:fmtRp(grand) } }],
+        footer: list.length ? `<button type="button" class="dxp-btn" onclick="Swal.close();navigateTo('piutang')"><i class="fas fa-file-invoice-dollar"></i> Buka Halaman Piutang</button>` : '' });
     }
 
     function menuItem(page, label, icon) {
