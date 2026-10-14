@@ -1346,22 +1346,27 @@
     function renderMenuTabs() {
       let h = ''; const r = currentUser?.role;
       if (r === 'admin') {
-        h = `<button class="tab ${currentPage==='dashboard'?'active':''}" onclick="navigateTo('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</button>
+        h = `<div class="tab-sec">UTAMA</div>
+             <button class="tab ${currentPage==='dashboard'?'active':''}" onclick="navigateTo('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</button>
              <button class="tab ${currentPage==='penjualan'?'active':''}" onclick="navigateTo('penjualan')"><i class="fas fa-cash-register"></i> Jual</button>
              <button class="tab ${currentPage==='transaksi'?'active':''}" onclick="navigateTo('transaksi')"><i class="fas fa-list"></i> Transaksi</button>
              <button class="tab ${currentPage==='rekap'?'active':''}" onclick="navigateTo('rekap')"><i class="fas fa-chart-bar"></i> Rekap</button>
              <button class="tab ${currentPage==='rekapinput'?'active':''}" onclick="navigateTo('rekapinput')"><i class="fas fa-boxes"></i> Rekap Input</button>
+             <div class="tab-sec">KEUANGAN</div>
              <button class="tab ${currentPage==='setoran'?'active':''}" onclick="navigateTo('setoran')"><i class="fas fa-money-bill-wave"></i> Setoran</button>
              <button class="tab ${currentPage==='rekapsetoran'?'active':''}" onclick="navigateTo('rekapsetoran')"><i class="fas fa-table"></i> Rekap Setoran</button>
+             <div class="tab-sec">STOK & BARANG</div>
              <button class="tab ${currentPage==='inputbarang'?'active':''}" onclick="navigateTo('inputbarang')"><i class="fas fa-boxes"></i> Input</button>
              <button class="tab ${currentPage==='stockbarang'?'active':''}" onclick="navigateTo('stockbarang')"><i class="fas fa-warehouse"></i> Stock</button>
              <button class="tab ${currentPage==='cekstock'?'active':''}" onclick="navigateTo('cekstock')"><i class="fas fa-clipboard-check"></i> Cek Stock</button>
              <button class="tab ${currentPage==='cekkosongan'?'active':''}" onclick="navigateTo('cekkosongan')"><i class="fas fa-recycle"></i> Cek Kosongan</button>
              <button class="tab ${currentPage==='pesanan'?'active':''}" onclick="navigateTo('pesanan')"><i class="fas fa-clipboard-list"></i> Pesanan</button>
              <button class="tab ${currentPage==='titipan'?'active':''}" onclick="navigateTo('titipan')"><i class="fas fa-people-carry-box"></i> Titipan</button>
+             <div class="tab-sec">DATA</div>
              <button class="tab ${currentPage==='produk'?'active':''}" onclick="navigateTo('produk')"><i class="fas fa-cubes"></i> Produk</button>
              <button class="tab ${currentPage==='pelanggan'?'active':''}" onclick="navigateTo('pelanggan')"><i class="fas fa-address-book"></i> Pelanggan</button>
-             <button class="tab ${currentPage==='pengaturan'?'active':''}" onclick="navigateTo('grafik')"><i class="fas fa-chart-line"></i> Grafik</button>
+             <div class="tab-sec">LAPORAN</div>
+             <button class="tab ${currentPage==='grafik'?'active':''}" onclick="navigateTo('grafik')"><i class="fas fa-chart-line"></i> Grafik</button>
              <button class="tab ${currentPage==='piutang'?'active':''}" onclick="navigateTo('piutang')"><i class="fas fa-file-invoice-dollar"></i> Piutang</button>
              <button class="tab ${currentPage==='laporanbulanan'?'active':''}" onclick="navigateTo('laporanbulanan')"><i class="fas fa-calendar-alt"></i> Laporan Bulanan</button>
              <button class="tab ${currentPage==='pengaturan'?'active':''}" onclick="navigateTo('pengaturan')"><i class="fas fa-cog"></i> Atur</button>`;
@@ -1384,7 +1389,9 @@
              <button class="tab ${currentPage==='pesanan'?'active':''}" onclick="navigateTo('pesanan')"><i class="fas fa-eye"></i> Pesanan</button>
              <button class="tab ${currentPage==='pengaturanUser'?'active':''}" onclick="navigateTo('pengaturanUser')"><i class="fas fa-cog"></i> Atur</button>`;
       }
-      document.getElementById('menuTabs').innerHTML = h;
+      document.getElementById('menuTabs').innerHTML = h; _sideInit();
+      try { const ds = document.getElementById('dashShortcut'); if (ds) ds.classList.toggle('active', currentPage === 'dashboard'); } catch(e) {} try { const okp = new Set(Array.from(document.querySelectorAll('#menuTabs .tab')).map(b => (b.getAttribute('onclick')||'').replace(/.*navigateTo\('([^']+)'\).*/,'$1'))); document.querySelectorAll('.sc-fab').forEach(b => { const pg = b.dataset.page; b.style.display = okp.has(pg) ? '' : 'none'; b.classList.toggle('active', currentPage === pg); }); } catch(e) {}
+      try { const act = document.querySelector('#menuTabs .tab.active'); const lb = document.getElementById('menuToggleLabel'); if (lb) lb.innerHTML = act ? act.innerHTML : '<i class="fas fa-bars"></i> Menu'; } catch(e) {}
     }
 
     // ========== MENU BAWAH (BOTTOM NAV) - KHUSUS TAMPILAN MOBILE ==========
@@ -1483,7 +1490,33 @@
       document.getElementById('bnavMoreSheet').classList.remove('open');
       document.getElementById('bnavMoreBackdrop').classList.remove('open');
     }
-    function navigateTo(p) { currentPage = p; document.body.setAttribute('data-page', p); renderMenuTabs(); renderBottomNav(); renderContent(); }
+    function toggleMenuTabs(force) { const w = document.querySelector('.menu-tabs-wrap'), b = document.getElementById('menuToggleBtn'); if (!w) return; const open = (typeof force === 'boolean') ? force : !w.classList.contains('open'); w.classList.toggle('open', open); if (b) b.classList.toggle('open', open); }
+    // Sidebar harus di luar #mainApp (yang punya backdrop-filter + overflow:hidden sehingga
+    // elemen position:fixed di dalamnya ikut terpotong). Di >=768px dipindah ke <body>,
+    // di HP dikembalikan ke posisi semula (tampilan lama).
+    function _sideRelocate() {
+      const wrap = document.querySelector('.menu-tabs-wrap'), fab = null, scrim = document.querySelector('.side-scrim');
+      if (!wrap) return;
+      if (!window._sideAnchor) { window._sideAnchor = document.createComment('side-anchor'); wrap.parentNode.insertBefore(window._sideAnchor, wrap); }
+      const wide = window.innerWidth >= 768;
+      if (wide && wrap.parentNode !== document.body) { [wrap, fab, scrim].forEach(el => el && document.body.appendChild(el)); }
+      else if (!wide && wrap.parentNode === document.body && window._sideAnchor.parentNode) { const p = window._sideAnchor.parentNode; p.insertBefore(wrap, window._sideAnchor.nextSibling); if (fab) p.insertBefore(fab, wrap); if (scrim) p.insertBefore(scrim, wrap); }
+    }
+    function _sideInit() {
+      _sideRelocate();
+      try { const lg = document.getElementById('sideLogo'), src = document.getElementById('logoImg'); if (lg && src && src.src && !lg.src) lg.src = src.src; } catch(e) {}
+      let saved = null; try { saved = localStorage.getItem('tirtaSideOpen'); } catch(e) {}
+      const open = window.innerWidth >= 1100 ? saved !== '0' : false;
+      document.body.classList.toggle('side-open', open);
+    }
+    function toggleSidebar(force) {
+      const open = (typeof force === 'boolean') ? force : !document.body.classList.contains('side-open');
+      document.body.classList.toggle('side-open', open);
+      if (open) { const mt = document.getElementById('menuTabs'); if (mt) mt.scrollTop = 0; }
+      try { if (window.innerWidth >= 1100) localStorage.setItem('tirtaSideOpen', open ? '1' : '0'); } catch(e) {}
+    }
+    window.addEventListener('resize', () => { _sideRelocate(); if (window.innerWidth < 1100) document.body.classList.remove('side-open'); });
+    function navigateTo(p) { toggleMenuTabs(false); if (window.innerWidth < 1100) document.body.classList.remove('side-open'); currentPage = p; document.body.setAttribute('data-page', p); renderMenuTabs(); renderBottomNav(); renderContent(); }
     function _pgHero(icon, title, sub, val, lbl) {
       return `<div class="pg-hero"><div class="pg-hero-eyebrow"><i class="fas ${icon}"></i> ${title}</div><div class="pg-hero-sub">${sub||''}</div>${val !== undefined && val !== null ? `<div class="pg-hero-val">${val}</div><div class="pg-hero-lbl">${lbl||''}</div>` : ''}</div>`;
     }
@@ -1602,6 +1635,7 @@
               ${rankList(prodRank, v => v + ' pcs', prodRank.length ? prodRank[0][1] : 0)}
             </div>
           </div>
+          ${_dxRekapPanels(today, todayTx)}
         `;
       }
 
@@ -1609,61 +1643,15 @@
       // (Jual, Input, dst) sudah bisa diakses lewat menu bawah (mobile/tablet) atau
       // tab menu (desktop), jadi tidak perlu duplikasi di sini.
 
-      h += `<div class="dx-section-title"><span></span>Menu Utama</div><div class="dx-menu">`;
-
-      if (role === 'admin') {
-        h += `<div class="menu-row-title">👑 Admin</div>`;
-        h += `<div class="menu-grid">`;
-        h += menuItem('dashboard', 'Dashboard', 'fa-chart-pie');
-        h += menuItem('produk', 'Produk', 'fa-cubes');
-        h += menuItem('pelanggan', 'Pelanggan', 'fa-address-book');
-        h += menuItem('pengaturan', 'Atur', 'fa-cog');
-        h += menuItem('googlesheets', 'Google Sheets', 'fa-table-cells');
-        h += menuItem('stockbarang', 'Stock', 'fa-warehouse');
-        h += menuItem('cekstock', 'Cek Stock', 'fa-clipboard-check');
-        h += menuItem('cekkosongan', 'Cek Kosongan', 'fa-recycle');
-        h += menuItem('pesanan', 'Pesanan', 'fa-clipboard-list');
-        h += menuItem('titipan', 'Titipan', 'fa-people-carry-box');
-        h += `</div>`;
-        
-        h += `<div class="menu-row-title">💼 Sales</div>`;
-        h += `<div class="menu-grid">`;
-        h += menuItem('penjualan', 'Jual', 'fa-cash-register');
-        h += menuItem('transaksi', 'Transaksi', 'fa-list');
-        h += menuItem('rekap', 'Rekap Penjualan', 'fa-chart-bar');
-        h += menuItem('setoran', 'Setoran', 'fa-money-bill-wave');
-        h += menuItem('rekapsetoran', 'Rekap Setoran', 'fa-table');
-        h += menuItem('grafik', 'Grafik', 'fa-chart-line');
-        h += menuItem('piutang', 'Piutang', 'fa-file-invoice-dollar');
-        h += `</div>`;
-        
-        h += `<div class="menu-row-title">🚚 Driver</div>`;
-        h += `<div class="menu-grid">`;
-        h += menuItem('inputbarang', 'Input', 'fa-boxes');
-        h += menuItem('rekapinput', 'Rekap Input', 'fa-clipboard-list');
-        h += menuItem('stockbarang', 'Stock Barang', 'fa-warehouse');
-        h += `</div>`;
-      } else if (role === 'sales') {
-        h += `<div class="menu-row-title">💼 Sales</div>`;
-        h += `<div class="menu-grid">`;
-        h += menuItem('penjualan', 'Jual', 'fa-cash-register');
-        h += menuItem('transaksi', 'Transaksi', 'fa-list');
-        h += menuItem('rekap', 'Rekap Penjualan', 'fa-chart-bar');
-        h += menuItem('setoran', 'Setoran', 'fa-money-bill-wave');
-        h += menuItem('rekapsetoran', 'Rekap Setoran', 'fa-table');
-        h += menuItem('pengaturanUser', 'Atur', 'fa-cog');
-        h += `</div>`;
-      } else if (role === 'driver') {
-        h += `<div class="menu-row-title">🚚 Driver</div>`;
-        h += `<div class="menu-grid">`;
-        h += menuItem('inputbarang', 'Input', 'fa-boxes');
-        h += menuItem('rekapinput', 'Rekap Input', 'fa-clipboard-list');
-        h += menuItem('pengaturanUser', 'Atur', 'fa-cog');
-        h += `</div>`;
-      }
-
-      h += `</div>`;
       document.getElementById('contentArea').innerHTML = h;
+      // Lengkapi item transaksi hari ini (sekali) agar rekap SKU/Customer akurat
+      if (role !== 'driver' && !window._dxItemsLoading) {
+        const need = allTrxList.some(t => (t.tgl||'').substring(0,10) === today && !(Array.isArray(t.items) && t.items.length));
+        if (need) {
+          window._dxItemsLoading = true;
+          ensureTrxItemsForDates([today]).then(() => { if (currentPage === 'dashboard') loadDashboard(); }).catch(()=>{}).finally(() => { setTimeout(()=>{ window._dxItemsLoading = false; }, 60000); });
+        }
+      }
     }
 
     // Hero dashboard (azure blue): salam, tanggal, angka utama, chip perubahan
@@ -1759,6 +1747,105 @@
 
     // [NEW] Detail Total Piutang Belum Bayar saat card di dashboard diklik.
     // Data diambil dari allTrxList (sumber sama dengan menu Piutang), status belumTransfer, SEMUA tanggal (bukan cuma hari ini).
+    // ===== Dashboard: Rekap Input / SKU / Customer (hari ini) =====
+    function _dxToday() { return localDateStr(); }
+    function _dxInputToday(today) {
+      return stockInHistory.filter(s => (s.date||s.tgl||'').substring(0,10) === today);
+    }
+    function _dxRekapPanels(today, todayTx) {
+      const inp = _dxInputToday(today);
+      const groups = new Set(inp.map(s => s.groupId || ((s.driver||'')+'|'+(s.rit||'')+'|'+(s.status||''))));
+      let qty = 0, kir = 0, tit = 0;
+      inp.forEach(s => { qty += (s.qty||0); const n=(s.qty||0)*((s.hargaModal||0)-(s.disc||0)); if (s.status==='titipan') tit+=n; else kir+=n; });
+      const skuMap = {}, cusMap = {};
+      todayTx.forEach(t => {
+        const c = t.customer || '—';
+        if (!cusMap[c]) cusMap[c] = { n:0, nett:0 };
+        cusMap[c].n++; cusMap[c].nett += (t.nett||0);
+        (t.items||[]).forEach(it => {
+          const k = it.nama || it.sku || '—';
+          if (!skuMap[k]) skuMap[k] = { qty:0, nett:0 };
+          skuMap[k].qty += (it.qty||0);
+          skuMap[k].nett += (it.qty||0) * ((it.harga||0) - (it.discRpPer||0));
+        });
+      });
+      const skuRows = Object.entries(skuMap).sort((a,b)=>b[1].qty-a[1].qty);
+      const cusRows = Object.entries(cusMap).sort((a,b)=>b[1].nett-a[1].nett);
+      const loadingNote = (todayTx.length && !skuRows.length) ? 'Memuat rincian item…' : 'Belum ada data hari ini';
+      const q = s => JSON.stringify(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      const row = (no, name, val, sub, fn) => `<div class="dx-rank dx-click" onclick="${fn}">
+          <div class="dx-rank-no">${no}</div>
+          <div class="dx-rank-body"><div class="dx-rank-row"><span class="dx-rank-n">${esc(name)}</span><span class="dx-rank-v">${val}</span></div>
+          <div class="dx-rank-sub">${sub}</div></div><i class="fas fa-chevron-right dx-chev-s"></i></div>`;
+      return `
+        <div class="dx-grid dx-grid-rekap">
+          <div class="dx-panel dx-click" onclick="showDxRekapInput()">
+            <div class="dx-panel-head"><span><i class="fas fa-boxes" style="color:var(--az-3);margin-right:6px"></i>Rekap Input Hari Ini</span><i class="fas fa-chevron-right dx-chev-s"></i></div>
+            <div class="dx-ri-total">${fmtRp(kir+tit)}</div>
+            <div class="dx-ri-chips"><span>${groups.size} input</span><span>${qty} pcs</span><span>Kiriman ${fmtRp(kir)}</span><span>Titipan ${fmtRp(tit)}</span></div>
+            ${inp.length ? '' : '<div class="dx-empty">Belum ada input hari ini</div>'}
+          </div>
+          <div class="dx-panel">
+            <div class="dx-panel-head"><span><i class="fas fa-cube" style="color:var(--az-3);margin-right:6px"></i>Rekap per SKU</span><span class="dx-panel-note">Hari ini · ${skuRows.length} SKU</span></div>
+            <div class="dx-scroll">${skuRows.length ? skuRows.slice(0,30).map((r,i)=>row(i+1,r[0],r[1].qty+' pcs',fmtRp(r[1].nett),'showDxSkuDetail('+q(r[0])+')')).join('') : `<div class="dx-empty">${loadingNote}</div>`}</div>
+          </div>
+          <div class="dx-panel">
+            <div class="dx-panel-head"><span><i class="fas fa-users" style="color:var(--az-3);margin-right:6px"></i>Rekap per Customer</span><span class="dx-panel-note">Hari ini · ${cusRows.length}</span></div>
+            <div class="dx-scroll">${cusRows.length ? cusRows.slice(0,30).map((r,i)=>row(i+1,r[0],fmtRp(r[1].nett),r[1].n+' transaksi','showDxCustDetail('+q(r[0])+')')).join('') : '<div class="dx-empty">Belum ada data hari ini</div>'}</div>
+          </div>
+        </div>`;
+    }
+    function _dxCard(title, rightTxt, body, accent) {
+      accent = accent || '#0078D4';
+      return `<div style="background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);margin-bottom:10px;overflow:hidden;text-align:left">
+        <div style="background:linear-gradient(135deg,${accent},#29A8FF);padding:8px 12px;display:flex;align-items:center;gap:8px">
+          <div style="font-weight:700;color:#fff;font-size:.8rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</div>
+          <span style="background:rgba(255,255,255,.25);color:#fff;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700;white-space:nowrap">${rightTxt}</span>
+        </div><div style="padding:8px 12px;color:#0F2A4A">${body}</div></div>`;
+    }
+    function _dxLine(l, r, bold) {
+      return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:.75rem;padding:2px 0;${bold?'font-weight:800;color:#0067B8;':''}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${l}</span><span style="white-space:nowrap">${r}</span></div>`;
+    }
+    function _dxSwal(title, html) {
+      Swal.fire({ title, html: `<div style="max-height:62vh;overflow:auto;padding:2px">${html}</div>`, showConfirmButton:true, confirmButtonText:'Tutup', confirmButtonColor:'#0078D4', width:Math.min(520, window.innerWidth-24) });
+    }
+    function showDxRekapInput() {
+      const inp = _dxInputToday(_dxToday());
+      if (!inp.length) return _dxSwal('Rekap Input Hari Ini', '<div style="padding:24px;text-align:center;color:#6B84A0;font-size:.8rem">Belum ada input hari ini</div>');
+      const g = {};
+      inp.forEach(s => {
+        const k = (s.driver||'—') + '|' + (s.rit||'') + '|' + (s.status||'');
+        if (!g[k]) g[k] = { driver:s.driver||'—', rit:s.rit, status:s.status, items:[], qty:0, net:0 };
+        g[k].items.push(s); g[k].qty += (s.qty||0); g[k].net += (s.qty||0)*((s.hargaModal||0)-(s.disc||0));
+      });
+      _dxSwal('Rekap Input Hari Ini', Object.values(g).map(x => _dxCard(
+        esc(x.driver) + (x.rit ? ' · Rit '+esc(String(x.rit)) : ''),
+        x.status==='titipan'?'Titipan':'Kiriman',
+        x.items.map(s => _dxLine(esc(s.nama||s.sku||'—'), (s.qty||0)+' pcs')).join('') + _dxLine('Total '+x.qty+' pcs', fmtRp(x.net), true),
+        x.status==='titipan'?'#7C3AED':'#0078D4')).join(''));
+    }
+    function showDxSkuDetail(name) {
+      const today = _dxToday(), per = {};
+      let tq = 0, tn = 0;
+      allTrxList.filter(t => (t.tgl||'').substring(0,10) === today).forEach(t => (t.items||[]).forEach(it => {
+        if ((it.nama || it.sku || '—') !== name) return;
+        const c = t.customer || '—'; if (!per[c]) per[c] = { qty:0, nett:0 };
+        const n = (it.qty||0)*((it.harga||0)-(it.discRpPer||0));
+        per[c].qty += (it.qty||0); per[c].nett += n; tq += (it.qty||0); tn += n;
+      }));
+      const rows = Object.entries(per).sort((a,b)=>b[1].qty-a[1].qty);
+      _dxSwal(esc(name), _dxCard('Pembeli hari ini', rows.length+' customer', rows.map(r=>_dxLine(esc(r[0]), r[1].qty+' pcs · '+fmtRp(r[1].nett))).join('') + _dxLine('Total '+tq+' pcs', fmtRp(tn), true)));
+    }
+    function showDxCustDetail(name) {
+      const today = _dxToday();
+      const trx = allTrxList.filter(t => (t.tgl||'').substring(0,10) === today && (t.customer||'—') === name);
+      const per = {}; let tn = 0;
+      trx.forEach(t => { tn += (t.nett||0); (t.items||[]).forEach(it => { const k = it.nama||it.sku||'—'; if (!per[k]) per[k] = { qty:0, nett:0 }; per[k].qty += (it.qty||0); per[k].nett += (it.qty||0)*((it.harga||0)-(it.discRpPer||0)); }); });
+      const rows = Object.entries(per).sort((a,b)=>b[1].qty-a[1].qty);
+      const body = (rows.length ? rows.map(r=>_dxLine(esc(r[0]), r[1].qty+' pcs · '+fmtRp(r[1].nett))).join('') : '<div style="font-size:.74rem;color:#6B84A0">Rincian item belum dimuat</div>') + _dxLine(trx.length+' transaksi', fmtRp(tn), true);
+      _dxSwal(esc(name), _dxCard('Pembelian hari ini', trx.length+' transaksi', body));
+    }
+
     function showDashboardPiutangDetail() {
       const piutang = allTrxList.filter(t=>(t.status||'')==='belumTransfer');
       const today = localDateStr();
@@ -3817,10 +3904,9 @@
       // panel ringkasan gradien biru senada tema aplikasi.
       Swal.fire({
         html: `<div style="text-align:left;font-family:inherit">
-          <div style="text-align:center;margin-bottom:14px">
-            <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#1A6DB5,#2F80FF);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;box-shadow:0 6px 16px rgba(26,109,181,.3)"><i class="fas fa-receipt" style="color:#fff;font-size:20px"></i></div>
-            <div style="font-size:1.05rem;font-weight:800;color:#0D2B3E">Edit Transaksi</div>
-            <div style="font-size:0.72rem;color:#94A3B8;font-family:monospace;margin-top:2px">${esc(trx.id)}</div>
+          <div class="etx-head">
+            <div class="etx-av"><i class="fas fa-pen-to-square"></i></div>
+            <div><div class="etx-title">Edit Transaksi</div><div class="etx-id">${esc(trx.id)}</div></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label style="font-size:0.64rem;font-weight:700;color:#5a7a90;text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:4px"><i class="fas fa-user" style="margin-right:4px"></i>Customer</label>
@@ -3847,7 +3933,8 @@
             <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:0.85rem;font-weight:800;color:#0D2B3E">TOTAL</span><span id="editSumNett" style="font-family:monospace;font-weight:800;font-size:1.2rem;color:#1A6DB5">Rp 0</span></div>
           </div>
         </div>`,
-        width: '520px', padding: '28px 24px',
+        width: '540px', padding: '0 22px 22px',
+        customClass: { popup: 'etx-popup', confirmButton: 'etx-confirm', cancelButton: 'etx-cancel' },
         showCancelButton: true, confirmButtonText: '💾 Simpan Perubahan', cancelButtonText: 'Batal',
         confirmButtonColor: '#1A6DB5', cancelButtonColor: '#94A3B8',
         buttonsStyling: true,
