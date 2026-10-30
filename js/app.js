@@ -57,7 +57,11 @@
     // deployment GAS tertentu POST-nya bermasalah (jarang, tapi mungkin), app tetap
     // jalan seperti sebelumnya lewat GET.
     // ══════════════════════════════════════════════════════════════
+    // Fungsi yang memang butuh waktu lama (AI, kirim email): batas waktu lebih panjang dan TANPA jalur cadangan GET,
+    // supaya server tidak diminta mengerjakan hal yang sama dua kali (boros jatah AI / email ganda).
+    const _GAS_LONG = { aiTanya: 75000, kirimLaporanEmail: 60000, kirimNotifTes: 45000, selfTest: 60000, backupNow: 60000 };
     async function gasCall(fn, args = [], retry = 1) {
+      if (_GAS_LONG[fn]) return await _gasCallPost(fn, args, _GAS_LONG[fn]);
       try {
         return await _gasCallPost(fn, args);
       } catch (postErr) {
@@ -65,10 +69,10 @@
         return await _gasCallGet(fn, args, retry);
       }
     }
-    function _gasCallPost(fn, args) {
+    function _gasCallPost(fn, args, ms) {
       return new Promise((resolve, reject) => {
         const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-        const timer = setTimeout(() => { if (controller) controller.abort(); }, 20000);
+        const timer = setTimeout(() => { if (controller) controller.abort(); }, ms || 20000);
         // [NOTE] Content-Type 'text/plain' sengaja dipakai (walau isinya JSON) supaya
         // browser TIDAK mengirim CORS preflight (OPTIONS) - Apps Script web app tidak
         // punya handler doOptions, jadi preflight akan gagal & memblokir request kalau
@@ -90,7 +94,7 @@
             forceReLogin_('Sesi login sudah habis. Silakan login lagi.');
           }
           reject(new Error(errMsg));
-        }).catch(e => { clearTimeout(timer); reject(e); });
+        }).catch(e => { clearTimeout(timer); reject(ms && (e.name === 'AbortError' || /abort/i.test(String(e.message))) ? new Error('Server masih memproses terlalu lama (lebih dari ' + Math.round(ms/1000) + ' detik). Coba lagi sebentar lagi.') : e); });
       });
     }
     async function _gasCallGet(fn, args = [], retry = 1) {
@@ -1136,6 +1140,7 @@
         syncEditLogFromGAS(); // [NEW] tarik log edit terbaru dari semua device/admin juga
         syncCustomerAddressesFromGAS(); // [NEW] tarik alamat pelanggan terbaru dari Sheets juga
         cicilanSync(); // [NEW] cicilan piutang
+        returSync(); // [v16] retur barang
         if (Array.isArray(prod)) products = prod;
         if (Array.isArray(cust)) { allCustomers = cust; pelanggan = cust.slice(); }
         if (Array.isArray(trx)) {
@@ -1427,6 +1432,7 @@
              <div class="tab-sec">LAPORAN</div>
              <button class="tab ${currentPage==='grafik'?'active':''}" onclick="navigateTo('grafik')"><i class="fas fa-chart-line"></i> Grafik</button>
              <button class="tab ${currentPage==='piutang'?'active':''}" onclick="navigateTo('piutang')"><i class="fas fa-file-invoice-dollar"></i> Piutang</button>
+             <button class="tab ${currentPage==='retur'?'active':''}" onclick="navigateTo('retur')"><i class="fas fa-rotate-left"></i> Retur</button>
              <button class="tab ${currentPage==='laporanbulanan'?'active':''}" onclick="navigateTo('laporanbulanan')"><i class="fas fa-calendar-alt"></i> Laporan Bulanan</button>
              <button class="tab ${currentPage==='profit'?'active':''}" onclick="navigateTo('profit')"><i class="fas fa-sack-dollar"></i> Profit</button>
              <button class="tab ${currentPage==='analisacust'?'active':''}" onclick="navigateTo('analisacust')"><i class="fas fa-users-viewfinder"></i> Analisa Customer</button>
@@ -1489,6 +1495,7 @@
           { page:'rekapsetoran', label:'Rekap Setoran', icon:'fa-table' },
           { page:'grafik', label:'Grafik', icon:'fa-chart-line' },
           { page:'piutang', label:'Piutang', icon:'fa-file-invoice-dollar' },
+          { page:'retur', label:'Retur', icon:'fa-rotate-left' },
           { page:'laporanbulanan', label:'Laporan Bulanan', icon:'fa-calendar-alt' },
           { page:'profit', label:'Profit', icon:'fa-sack-dollar' },
           { page:'analisacust', label:'Analisa Customer', icon:'fa-users-viewfinder' },
@@ -1593,7 +1600,7 @@
     function _pgHero(icon, title, sub, val, lbl) {
       return `<div class="pg-hero"><div class="pg-hero-eyebrow"><i class="fas ${icon}"></i> ${title}</div><div class="pg-hero-sub">${sub||''}</div>${val !== undefined && val !== null ? `<div class="pg-hero-val">${val}</div><div class="pg-hero-lbl">${lbl||''}</div>` : ''}</div>`;
     }
-    function renderContent() { try { document.getElementById('contentArea').setAttribute('data-page', currentPage); } catch(e) {} switch (currentPage) { case 'dashboard': loadDashboard(); break; case 'penjualan': loadPenjualan(); break; case 'transaksi': loadTransaksi(); break; case 'rekap': loadRekap(); break; case 'rekapinput': loadRekapInput(); break; case 'setoran': loadSetoran(); break; case 'rekapsetoran': loadRekapSetoran(); break; case 'inputbarang': loadInputBarang(); break; case 'stockbarang': loadStockBarang(); break; case 'cekstock': loadCekStock(); break; case 'cekkosongan': loadCekKosongan(); break; case 'pesanan': loadPesanan(); break; case 'titipan': loadTitipan(); break; case 'produk': loadProduk(); break; case 'pelanggan': loadPelanggan(); break; case 'pengaturan': loadPengaturan(); break; case 'pengaturanUser': loadPengaturanUser(); break; case 'grafik': loadGrafik(); break; case 'piutang': loadPiutang(); break; case 'laporanbulanan': loadLaporanBulanan(); break; case 'profit': loadProfit(); break; case 'analisacust': loadAnalisaCust(); break; case 'rekapharian': loadRekapHarian(); break; case 'auditlog': loadAuditLog(); break; case 'googlesheets': loadGoogleSheets(); break; case 'panduan': loadPanduan(); break; } }
+    function renderContent() { try { document.getElementById('contentArea').setAttribute('data-page', currentPage); } catch(e) {} switch (currentPage) { case 'dashboard': loadDashboard(); break; case 'penjualan': loadPenjualan(); break; case 'transaksi': loadTransaksi(); break; case 'rekap': loadRekap(); break; case 'rekapinput': loadRekapInput(); break; case 'setoran': loadSetoran(); break; case 'rekapsetoran': loadRekapSetoran(); break; case 'inputbarang': loadInputBarang(); break; case 'stockbarang': loadStockBarang(); break; case 'cekstock': loadCekStock(); break; case 'cekkosongan': loadCekKosongan(); break; case 'pesanan': loadPesanan(); break; case 'titipan': loadTitipan(); break; case 'produk': loadProduk(); break; case 'pelanggan': loadPelanggan(); break; case 'pengaturan': loadPengaturan(); break; case 'pengaturanUser': loadPengaturanUser(); break; case 'grafik': loadGrafik(); break; case 'piutang': loadPiutang(); break; case 'retur': loadRetur(); break; case 'laporanbulanan': loadLaporanBulanan(); break; case 'profit': loadProfit(); break; case 'analisacust': loadAnalisaCust(); break; case 'rekapharian': loadRekapHarian(); break; case 'auditlog': loadAuditLog(); break; case 'googlesheets': loadGoogleSheets(); break; case 'panduan': loadPanduan(); break; } }
 
     // ========== DASHBOARD (MENU UTAMA) ==========
     function loadDashboard() {
@@ -1632,7 +1639,9 @@
         const transfer = todayTx.filter(t=>t.status==='transfer').reduce((s,t)=>s+(t.nett||0),0);
         const qris = todayTx.filter(t=>t.status==='qris').reduce((s,t)=>s+(t.nett||0),0);
         const belum = todayTx.filter(t=>t.status==='belumTransfer').reduce((s,t)=>s+(t.nett||0),0);
-        const total = cod+transfer+qris+belum;
+        const totalKotor = cod+transfer+qris+belum;
+        const _rtD = _returOn(today);
+        const total = totalKotor - _rtD.nilai;
         // [NEW] Total Piutang (semua transaksi belumTransfer, semua tanggal - bukan cuma hari ini)
         const piutangAll = allTrxList.filter(t=>(t.status||'')==='belumTransfer');
         const totalPiutangAll = piutangAll.reduce((s,t)=>s+_sisa(t),0);
@@ -1643,13 +1652,13 @@
         for (let i = 6; i >= 0; i--) {
           const dd = new Date(); dd.setDate(dd.getDate() - i);
           const key = _ds(dd);
-          const sum = allTrxList.filter(t => (t.tgl||'').substring(0,10) === key).reduce((s,t)=>s+(t.nett||0),0);
+          const sum = allTrxList.filter(t => (t.tgl||'').substring(0,10) === key).reduce((s,t)=>s+(t.nett||0),0) - _returOn(key).nilai;
           trend.push({ key, label: dayNames[dd.getDay()], sum, isToday: i === 0 });
         }
         const yest = trend[5].sum;
         const delta = yest > 0 ? Math.round((total - yest) / yest * 100) : null;
         const maxTrend = Math.max(1, ...trend.map(x => x.sum));
-        const pct = v => total > 0 ? Math.round(v / total * 100) : 0;
+        const pct = v => totalKotor > 0 ? Math.round(v / totalKotor * 100) : 0;
         const avg = todayTx.length ? Math.round(total / todayTx.length) : 0;
 
         // Penjualan per sales (hari ini)
@@ -1676,7 +1685,7 @@
           </div>`).join('') : '<div class="dx-empty">Belum ada data hari ini</div>';
 
         h = `
-          ${_dxHero({ eyebrow:'Total Penjualan Hari Ini', title: total, sub: todayTx.length + ' transaksi · rata-rata ' + fmtRp(avg), delta })}
+          ${_dxHero({ eyebrow:'Total Penjualan Hari Ini', title: total, sub: todayTx.length + ' transaksi · rata-rata ' + fmtRp(avg) + (_rtD.nilai > 0 ? ' · retur −' + fmtRp(_rtD.nilai) : ''), delta })}
           <div class="dx-kpis">
             ${kpi('cod','COD','fa-hand-holding-usd',cod,'')}
             ${kpi('transfer','Transfer','fa-university',transfer,'')}
@@ -2784,7 +2793,7 @@
       return `<div style="background:linear-gradient(120deg,${t.a0},${t.a1} 55%,${t.a2});padding:16px 18px 40px;color:#fff">
         <div style="display:flex;align-items:center;gap:11px">${_rcLogo(o.logo)}
           <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center"><div style="font-size:17px;font-weight:800;letter-spacing:-.3px;line-height:1.15">${esc(settings.namaToko||'Tirta Kencana')}</div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.9px;line-height:1.25;opacity:.95;margin-top:2px">WTC MANGGA 2</div><div style="font-size:9.5px;font-weight:500;letter-spacing:.5px;line-height:1.25;opacity:.85;margin-top:1px;margin-bottom:6px">LANTAI UG BLOK A /53</div></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.9px;line-height:1.25;opacity:.95;margin-top:2px">WTC MANGGA 2</div><div style="font-size:9.5px;font-weight:600;letter-spacing:.5px;line-height:1.25;opacity:.85;margin-top:1px;margin-bottom:6px">LANTAI UG BLOK A /53</div></div>
           ${o.icon?`<div style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="fas ${o.icon}"></i></div>`:''}</div>
         <div style="margin-top:14px;font-size:19px;font-weight:800;letter-spacing:-.3px;line-height:1.2">${o.title||''}</div>
         ${o.sub?`<div style="font-size:11px;opacity:.88;margin-top:3px">${o.sub}</div>`:''}</div>`;
@@ -2792,27 +2801,27 @@
     // stats: [{l, v}]
     function _rcStats(stats, tone) {
       const t = _rcT(tone);
-      return `<div style="display:flex;gap:8px;padding:0 14px;margin-top:-24px;position:relative">${stats.map(x => `<div style="flex:1;min-width:0;background:#fff;border-radius:14px;padding:10px 4px;text-align:center;box-shadow:0 6px 16px rgba(0,60,140,.14)"><div style="font-size:12px;font-weight:800;color:${t.tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'JetBrains Mono',Tahoma,monospace">${x.v}</div><div style="font-size:8.5px;font-weight:700;color:#6B84A0;text-transform:uppercase;letter-spacing:.6px;margin-top:3px">${x.l}</div></div>`).join('')}</div>`;
+      return `<div style="display:flex;gap:8px;padding:0 14px;margin-top:-24px;position:relative">${stats.map(x => `<div style="flex:1;min-width:0;background:#fff;border-radius:14px;padding:10px 4px;text-align:center;box-shadow:0 6px 16px rgba(0,60,140,.14)"><div style="font-size:12px;font-weight:800;color:${t.tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'JetBrains Mono',Tahoma,monospace">${x.v}</div><div style="font-size:8.5px;font-weight:700;color:#4A6283;text-transform:uppercase;letter-spacing:.6px;margin-top:3px">${x.l}</div></div>`).join('')}</div>`;
     }
     function _rcBody(inner) { return `<div style="padding:14px">${inner}</div>`; }
     // kartu info: pasangan label/nilai
     function _rcInfo(pairs, tone) {
       const t = _rcT(tone);
-      return `<div style="background:#fff;border-radius:16px;border:1px solid ${t.chip};box-shadow:0 2px 10px rgba(0,40,100,.06);padding:11px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px 0">${pairs.map(p => `<div style="width:${p.full?'100%':'50%'};min-width:0;${p.right?'text-align:right;':''}"><div style="font-size:8.5px;font-weight:700;color:#6B84A0;text-transform:uppercase;letter-spacing:.7px">${p.l}</div><div style="font-size:12px;font-weight:700;color:${p.c||'#0F2A4A'};margin-top:1px;word-break:break-word">${p.v}</div></div>`).join('')}</div>`;
+      return `<div style="background:#fff;border-radius:16px;border:1px solid ${t.chip};box-shadow:0 2px 10px rgba(0,40,100,.06);padding:11px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px 0">${pairs.map(p => `<div style="width:${p.full?'100%':'50%'};min-width:0;${p.right?'text-align:right;':''}"><div style="font-size:8.5px;font-weight:700;color:#4A6283;text-transform:uppercase;letter-spacing:.7px">${p.l}</div><div style="font-size:12px;font-weight:700;color:${p.c||'#0F2A4A'};margin-top:1px;word-break:break-word">${p.v}</div></div>`).join('')}</div>`;
     }
     // baris: {n, sub, q (pill), v (nominal kecil di bawah pill)}
     function _rcRow(i, r, tone) {
       const t = _rcT(tone);
       return `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px dashed ${t.chip}">
         <div style="width:24px;height:24px;flex-shrink:0;border-radius:8px;background:${t.chip};color:${t.tx};font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">${r.no || (i + 1)}</div>
-        <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#0F2A4A;line-height:1.3">${r.n}</div>${r.sub ? `<div style="font-size:10px;color:#6B84A0;margin-top:1px;line-height:1.35">${r.sub}</div>` : ''}</div>
+        <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:#0F2A4A;line-height:1.3">${r.n}</div>${r.sub ? `<div style="font-size:10px;color:#4A6283;margin-top:1px;line-height:1.35">${r.sub}</div>` : ''}</div>
         ${(r.q || r.v) ? `<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px">${r.q ? `<span style="font-size:10.5px;font-weight:800;color:${r.qc || t.tx};background:${r.qbg || t.chip};padding:3px 9px;border-radius:20px;white-space:nowrap;line-height:1.5;display:inline-block">${r.q}</span>` : ''}${r.v ? `<span style="font-size:10.5px;font-weight:700;color:#4B6584;font-family:'JetBrains Mono',Tahoma,monospace;white-space:nowrap">${r.v}</span>` : ''}</div>` : ''}
       </div>`;
     }
     // s: {title (html), badge, rows:[...], total:{l,v}, tone, note}
     function _rcSec(s) {
       const t = _rcT(s.tone);
-      const rows = (s.rows || []).map((r, i) => _rcRow(i, r, s.tone)).join('') || '<div style="padding:16px;text-align:center;font-size:11px;color:#6B84A0">Tidak ada data</div>';
+      const rows = (s.rows || []).map((r, i) => _rcRow(i, r, s.tone)).join('') || '<div style="padding:16px;text-align:center;font-size:11px;color:#4A6283">Tidak ada data</div>';
       return `<div style="background:#fff;border-radius:16px;border:1px solid ${t.chip};box-shadow:0 2px 10px rgba(0,40,100,.07);margin-bottom:12px;overflow:hidden">
         ${s.title ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:${t.tint};border-bottom:1px solid ${t.chip}"><span style="font-size:11.5px;font-weight:800;color:#0B3A6A;min-width:0">${s.title}</span>${s.badge ? `<span style="font-size:9.5px;font-weight:800;color:#fff;background:${t.a1};padding:3px 10px;border-radius:20px;white-space:nowrap">${s.badge}</span>` : ''}</div>` : ''}
         ${rows}
@@ -2842,7 +2851,7 @@
       let totalQty = 0;
       let rows = [];
       if (data._loading) {
-        rows = [{ n:'<span style="color:#6B84A0;font-weight:600">Memuat detail item…</span>' }];
+        rows = [{ n:'<span style="color:#4A6283;font-weight:600">Memuat detail item…</span>' }];
       } else if (items.length) {
         rows = items.map(it => {
           const nettPer = it.nettPer !== undefined ? it.nettPer : (it.harga||0) - (it.discRpPer||0);
@@ -2852,18 +2861,18 @@
             q:(it.qty||0)+' pcs', v:_rcRp(nettPer*(it.qty||1)) };
         });
       } else {
-        rows = [{ n:'<span style="color:#6B84A0;font-weight:600">Detail item tidak tersedia</span>' }];
+        rows = [{ n:'<span style="color:#4A6283;font-weight:600">Detail item tidak tersedia</span>' }];
       }
 
       let payHtml = '';
       if (ns === 'transfer') {
         [settings.bank1, settings.bank2].forEach(bk => {
           if (!bk || !bk.nama) return;
-          payHtml += _rcCard(`<div style="font-size:8.5px;font-weight:700;color:#6B84A0;text-transform:uppercase;letter-spacing:.7px">Transfer ke</div><div style="font-size:12px;font-weight:800;color:#0F2A4A;margin-top:2px">${esc(bk.nama)}</div>${bk.norek?`<div style="font-family:'JetBrains Mono',Tahoma,monospace;font-size:16px;font-weight:800;color:${t.tx};letter-spacing:.5px;margin-top:2px">${esc(bk.norek)}</div>`:''}<div style="font-size:10.5px;color:#4B6584;margin-top:2px">a.n. <b>${esc(bk.penerima||'-')}</b></div>`);
+          payHtml += _rcCard(`<div style="font-size:8.5px;font-weight:700;color:#4A6283;text-transform:uppercase;letter-spacing:.7px">Transfer ke</div><div style="font-size:12px;font-weight:800;color:#0F2A4A;margin-top:2px">${esc(bk.nama)}</div>${bk.norek?`<div style="font-family:'JetBrains Mono',Tahoma,monospace;font-size:16px;font-weight:800;color:${t.tx};letter-spacing:.5px;margin-top:2px">${esc(bk.norek)}</div>`:''}<div style="font-size:10.5px;color:#4B6584;margin-top:2px">a.n. <b>${esc(bk.penerima||'-')}</b></div>`);
         });
       }
       if (ns === 'qris' && _qrisUrl) {
-        payHtml += _rcCard(`<div style="text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#6B84A0;margin-bottom:8px">Scan QRIS</div><img src="${_qrisUrl}" style="width:170px;height:170px;object-fit:contain;border-radius:12px;border:1.5px solid ${t.chip};background:#fff;padding:8px"></div>`);
+        payHtml += _rcCard(`<div style="text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4A6283;margin-bottom:8px">Scan QRIS</div><img src="${_qrisUrl}" style="width:170px;height:170px;object-fit:contain;border-radius:12px;border:1.5px solid ${t.chip};background:#fff;padding:8px"></div>`);
       }
 
       const lines = [{ l:'Gross', v:_rcRp(trx.gross||0) }];
@@ -3382,7 +3391,7 @@
     }
     function pgGoto(key, page) { _pgState[key] = page; const fn = window['_pgRerender_' + key]; if (typeof fn === 'function') fn(); }
 
-    function renderTrxTable(filtered = allTrxList, _pgKeep = false) { const tb = document.getElementById('trxTbody'); if (!tb) return; try { _txUpdateHero(filtered); } catch(e) {} if (!_pgKeep) pgReset('trx'); window._pgRerender_trx = () => renderTrxTable(filtered, true); if (!filtered.length) { tb.innerHTML = '<tr><td colspan="9" class="text-center text-sm" style="padding:32px">Tidak ada transaksi</td></tr>'; const pb0 = document.getElementById('trxPaginationBar'); if (pb0) pb0.innerHTML = ''; return; } try { _txUpdateHero(filtered); } catch(e) {} const _pg = pgSlice(filtered, 'trx', 25); const pb = document.getElementById('trxPaginationBar'); if (pb) pb.innerHTML = pgBar('trx', _pg.page, _pg.totalPages, _pg.total, _pg.pageSize); const _isAdmin = currentUser?.role === 'admin'; tb.innerHTML = _pg.items.map(t => `<tr class="tx-row st-${esc(t.status||'')}"><td data-label="ID" class="tx-id">${esc(t.id)}${_pendingChip(t.id)}</td><td data-label="Tanggal" class="tx-tgl">${fmtDate(t.tgl)}</td><td data-label="Customer" class="tx-cust">${esc(t.customer||'-')}</td><td data-label="Sales" class="tx-sales">${esc(t.sales||'-')}</td><td data-label="Gross" class="tx-num">${fmtRp(t.gross)}</td><td data-label="Diskon" class="tx-num tx-disc">${fmtRp(t.diskon)}</td><td data-label="Nett" class="tx-nett">${fmtRp(t.nett)}</td><td data-label="Status" class="tx-stat"><select class="form-control tx-sel" onchange="updateTrxStatus('${esc(t.id).replace(/'/g,"\\'")}', this.value)"><option value="cod" ${t.status==='cod'?'selected':''}>COD</option><option value="transfer" ${t.status==='transfer'?'selected':''}>Transfer</option><option value="qris" ${t.status==='qris'?'selected':''}>QRIS</option><option value="belumTransfer" ${t.status==='belumTransfer'?'selected':''}>Belum</option></select></td><td data-label="" class="tx-act"><button class="btn tx-b tx-b-print btn-primary" onclick="cetakUlangStruk('${esc(t.id).replace(/'/g,"\\'")}')">🧾 Cetak</button>${_isAdmin ? `<button class="btn tx-b tx-b-edit btn-outline" onclick="editTrx('${esc(t.id).replace(/'/g,"\\'")}')">✏️ Edit</button>` : ''}<button class="btn tx-b tx-b-del" title="${_trxLockInfo(t) ? 'Terkunci: setoran sudah ditutup' : 'Hapus transaksi'}" aria-label="Hapus transaksi" onclick="deleteTrx('${esc(t.id).replace(/'/g,"\\'")}')">${_trxLockInfo(t) ? '🔒' : '🗑'}</button></td></tr>`).join(''); }
+    function renderTrxTable(filtered = allTrxList, _pgKeep = false) { const tb = document.getElementById('trxTbody'); if (!tb) return; try { _txUpdateHero(filtered); } catch(e) {} if (!_pgKeep) pgReset('trx'); window._pgRerender_trx = () => renderTrxTable(filtered, true); if (!filtered.length) { tb.innerHTML = '<tr><td colspan="9" class="text-center text-sm" style="padding:32px">Tidak ada transaksi</td></tr>'; const pb0 = document.getElementById('trxPaginationBar'); if (pb0) pb0.innerHTML = ''; return; } try { _txUpdateHero(filtered); } catch(e) {} const _pg = pgSlice(filtered, 'trx', 25); const pb = document.getElementById('trxPaginationBar'); if (pb) pb.innerHTML = pgBar('trx', _pg.page, _pg.totalPages, _pg.total, _pg.pageSize); const _isAdmin = currentUser?.role === 'admin'; tb.innerHTML = _pg.items.map(t => `<tr class="tx-row st-${esc(t.status||'')}"><td data-label="ID" class="tx-id">${esc(t.id)}${_pendingChip(t.id)}</td><td data-label="Tanggal" class="tx-tgl">${fmtDate(t.tgl)}</td><td data-label="Customer" class="tx-cust">${esc(t.customer||'-')}</td><td data-label="Sales" class="tx-sales">${esc(t.sales||'-')}</td><td data-label="Gross" class="tx-num">${fmtRp(t.gross)}</td><td data-label="Diskon" class="tx-num tx-disc">${fmtRp(t.diskon)}</td><td data-label="Nett" class="tx-nett">${fmtRp(t.nett)}</td><td data-label="Status" class="tx-stat"><select class="form-control tx-sel" onchange="updateTrxStatus('${esc(t.id).replace(/'/g,"\\'")}', this.value)"><option value="cod" ${t.status==='cod'?'selected':''}>COD</option><option value="transfer" ${t.status==='transfer'?'selected':''}>Transfer</option><option value="qris" ${t.status==='qris'?'selected':''}>QRIS</option><option value="belumTransfer" ${t.status==='belumTransfer'?'selected':''}>Belum</option></select></td><td data-label="" class="tx-act"><button class="btn tx-b tx-b-print btn-primary" onclick="cetakUlangStruk('${esc(t.id).replace(/'/g,"\\'")}')">🧾 Cetak</button>${_isAdmin ? `<button class="btn tx-b tx-b-edit btn-outline" onclick="editTrx('${esc(t.id).replace(/'/g,"\\'")}')">✏️ Edit</button><button class="btn tx-b tx-b-edit btn-outline" onclick="returUI('${esc(t.id).replace(/'/g,"\\'")}')">↩ Retur</button>` : ''}<button class="btn tx-b tx-b-del" title="${_trxLockInfo(t) ? 'Terkunci: setoran sudah ditutup' : 'Hapus transaksi'}" aria-label="Hapus transaksi" onclick="deleteTrx('${esc(t.id).replace(/'/g,"\\'")}')">${_trxLockInfo(t) ? '🔒' : '🗑'}</button></td></tr>`).join(''); }
 
     async function cetakUlangStruk(id) {
       let trx = allTrxList.find(t => t.id === id);
@@ -3883,8 +3892,136 @@
     function _cicRebuild() { _cicMap = {}; cicilanList.forEach(c => { _cicMap[c.trxId] = (_cicMap[c.trxId] || 0) + (Number(c.jumlah) || 0); }); }
     function _cicSave() { try { localStorage.setItem(CIC_KEY, JSON.stringify(cicilanList)); } catch(e) {} }
     function _cicPaid(id) { return _cicMap[id] || 0; }
-    function _sisa(t) { return Math.max(0, (t.nett || 0) - _cicPaid(t.id)); }
+    function _sisa(t) { return Math.max(0, (t.nett || 0) - _cicPaid(t.id) - _retNilai(t.id)); }
     _cicRebuild();
+    // ===== RETUR BARANG (v16) =====
+    const RET_KEY = 'tirtaRetur';
+    let returList = []; try { returList = JSON.parse(localStorage.getItem(RET_KEY) || '[]') || []; } catch(e) {}
+    let _retMap = {};
+    function _retRebuild() { _retMap = {}; returList.forEach(r => { _retMap[r.trxId] = (_retMap[r.trxId] || 0) + (Number(r.nilai) || 0); }); }
+    function _retSave() { try { localStorage.setItem(RET_KEY, JSON.stringify(returList)); } catch(e) {} }
+    function _retNilai(id) { return _retMap[id] || 0; }
+    _retRebuild();
+    function _retGroups() {
+      const g = {};
+      returList.forEach(r => {
+        const x = g[r.id] || (g[r.id] = { id: r.id, trxId: r.trxId, tgl: r.tgl, customer: r.customer, items: [], nilai: 0, profit: 0, qty: 0, alasan: r.alasan, kembaliStok: r.kembaliStok !== false, metode: r.metode, potong: 0, refund: 0, oleh: r.oleh, waktu: r.waktu, pending: !!r.pending });
+        x.items.push(r); x.nilai += Number(r.nilai)||0; x.profit += Number(r.profit)||0; x.qty += Number(r.qty)||0; x.potong += Number(r.potong)||0; x.refund += Number(r.refund)||0;
+      });
+      return Object.values(g).sort((a,b) => String(b.tgl).localeCompare(String(a.tgl)) || String(b.waktu).localeCompare(String(a.waktu)));
+    }
+    function _returOn(tgl) {
+      const o = { nilai: 0, profit: 0, qty: 0, jml: 0 }, ids = new Set();
+      returList.forEach(r => { if (String(r.tgl).substring(0,10) !== tgl) return; o.nilai += Number(r.nilai)||0; o.profit += Number(r.profit)||0; o.qty += Number(r.qty)||0; ids.add(r.id); });
+      o.jml = ids.size; return o;
+    }
+    async function returSync() {
+      try {
+        const r = await gasCall('getRetur', []);
+        if (!Array.isArray(r)) return;
+        const pend = returList.filter(c => c.pending && (typeof _syncQueue !== 'undefined') && _syncQueue.some(q => q.qid === c.qid));
+        const have = new Set(r.map(x => x.id));
+        returList = r.concat(pend.filter(c => !have.has(c.id)));
+        _retRebuild(); _retSave();
+        if (currentPage === 'retur') loadRetur();
+        else if (currentPage === 'piutang') loadPiutang();
+      } catch(e) {}
+    }
+    const RET_ALASAN = ['Barang rusak / bocor', 'Salah kirim', 'Pesanan dibatalkan', 'Kedaluwarsa', 'Kelebihan kirim', 'Lainnya'];
+    async function returUI(id) {
+      if (currentUser?.role !== 'admin') return Swal.fire('Akses Ditolak', 'Hanya admin yang bisa membuat retur.', 'error');
+      const t = allTrxList.find(x => x.id === id); if (!t) return;
+      if (!Array.isArray(t.items) || !t.items.length) {
+        try { const d = await gasCall('getTrxDetail', [id]); if (d && Array.isArray(d.items) && d.items.length) { t.items = d.items; saveLocalData(); } } catch(e) {}
+      }
+      const items = Array.isArray(t.items) ? t.items : [];
+      if (!items.length) return Swal.fire('Item belum tersedia', 'Detail barang transaksi ini belum bisa dimuat. Coba lagi saat online.', 'info');
+      const sold = {}, info = {}; items.forEach(it => { sold[it.sku] = (sold[it.sku]||0) + (Number(it.qty)||0); info[it.sku] = it; });
+      const back = {}; returList.forEach(r => { if (r.trxId === id) back[r.sku] = (back[r.sku]||0) + (Number(r.qty)||0); });
+      const lines = Object.keys(sold).map(sku => ({ sku, nama: info[sku].nama || sku, sold: sold[sku], back: back[sku]||0, sisa: sold[sku] - (back[sku]||0), nettPer: Number(info[sku].nettPer) || ((Number(info[sku].harga)||0) - (Number(info[sku].discRpPer)||0)) }));
+      if (!lines.some(l => l.sisa > 0)) return Swal.fire('Sudah diretur semua', 'Semua barang di transaksi ini sudah diretur.', 'info');
+      window._retLines = lines; window._retTrx = t;
+      const piutang = t.status === 'belumTransfer';
+      Swal.fire({
+        title: '↩ Retur Barang',
+        width: Math.min(460, window.innerWidth - 20),
+        html: `<div style="text-align:left;font-size:.84rem">
+          <div style="font-weight:800;font-size:.95rem">${esc(t.customer||'-')}</div>
+          <div style="font-size:.72rem;opacity:.75;margin-bottom:10px">${esc(t.id)} · ${esc(fmtDate(t.tgl))} · ${piutang ? 'Belum lunas (retur memotong piutang)' : 'Sudah lunas (uang dikembalikan)'}</div>
+          ${lines.map((l,i) => l.sisa <= 0 ? '' : `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed rgba(41,168,255,.3)"><div style="flex:1;min-width:0"><div style="font-weight:800">${esc(l.nama)}</div><div style="font-size:.7rem;opacity:.75">Dijual ${l.sold}${l.back ? ' · sudah retur ' + l.back : ''} · ${fmtRp(l.nettPer)}/pcs</div></div><input type="number" inputmode="numeric" min="0" max="${l.sisa}" value="0" data-i="${i}" class="swal2-input ret-q" style="width:76px;margin:0;text-align:center" oninput="_retHitung()"><span style="font-size:.7rem;opacity:.7">/${l.sisa}</span></div>`).join('')}
+          <label style="display:flex;gap:8px;align-items:center;margin:12px 0 6px;font-weight:700"><input type="checkbox" id="retStok" checked> Kembalikan barang ke stok</label>
+          <label style="font-size:.64rem;font-weight:800;letter-spacing:.4px;text-transform:uppercase;opacity:.75">Alasan</label>
+          <select id="retAlasan" class="swal2-input" style="margin:4px 0 8px;width:100%;box-sizing:border-box">${RET_ALASAN.map(a => `<option>${esc(a)}</option>`).join('')}</select>
+          <input id="retCat" type="text" maxlength="100" placeholder="Catatan (opsional)" class="swal2-input" style="margin:0 0 8px;width:100%;box-sizing:border-box">
+          <label style="font-size:.64rem;font-weight:800;letter-spacing:.4px;text-transform:uppercase;opacity:.75">Tanggal retur</label>
+          <input id="retTgl" type="date" value="${localDateStr()}" class="swal2-input" style="margin:4px 0 8px;width:100%;box-sizing:border-box">
+          <div id="retTotal" style="margin-top:6px;padding:10px;border-radius:12px;background:rgba(220,38,38,.1);font-weight:800;text-align:center;color:#DC2626">Nilai retur: ${fmtRp(0)}</div>
+        </div>`,
+        showCancelButton: true, confirmButtonText: 'Simpan Retur', cancelButtonText: 'Batal',
+        preConfirm: () => {
+          const out = [];
+          document.querySelectorAll('.ret-q').forEach(el => {
+            const l = window._retLines[Number(el.dataset.i)], q = Math.round(Number(el.value) || 0);
+            if (q > l.sisa) { Swal.showValidationMessage('Retur ' + l.nama + ' melebihi ' + l.sisa); out.length = 0; out.bad = true; return; }
+            if (q > 0) out.push({ sku: l.sku, nama: l.nama, qty: q, nettPer: l.nettPer });
+          });
+          if (out.bad) return false;
+          if (!out.length) { Swal.showValidationMessage('Isi jumlah retur minimal satu barang'); return false; }
+          const cat = document.getElementById('retCat').value.trim(), al = document.getElementById('retAlasan').value;
+          return { items: out, kembaliStok: document.getElementById('retStok').checked, alasan: al + (cat ? ' — ' + cat : ''), tgl: document.getElementById('retTgl').value || localDateStr() };
+        }
+      }).then(r => { if (r.isConfirmed && r.value) returSimpan(id, r.value); });
+    }
+    function _retHitung() {
+      let n = 0; document.querySelectorAll('.ret-q').forEach(el => { const l = window._retLines[Number(el.dataset.i)]; n += Math.min(Math.max(0, Math.round(Number(el.value)||0)), l.sisa) * l.nettPer; });
+      const el = document.getElementById('retTotal'); if (el) el.textContent = 'Nilai retur: ' + fmtRp(n);
+    }
+    function returSimpan(id, v) {
+      const t = allTrxList.find(x => x.id === id); if (!t) return;
+      const rid = 'RET-L' + Date.now().toString(36) + Math.floor(Math.random()*1e4);
+      const now = new Date(); const waktu = localDateStr() + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+      const nilai = v.items.reduce((a,x) => a + x.qty * x.nettPer, 0);
+      const piutang = t.status === 'belumTransfer';
+      const sisaNow = _sisa(t), potong = piutang ? Math.min(nilai, sisaNow) : 0, refund = nilai - potong;
+      const qid = enqueueSync('addRetur', [{ trxId: id, tgl: v.tgl, items: v.items.map(x => ({ sku: x.sku, qty: x.qty })), alasan: v.alasan, kembaliStok: v.kembaliStok, rid }], 'Retur ' + (t.customer || id));
+      v.items.forEach((x, i) => {
+        const it = (t.items||[]).find(z => z.sku === x.sku) || {}, modal = Number(it.modal) || 0;
+        returList.push({ id: rid, trxId: id, tgl: v.tgl, customer: t.customer || '', sku: x.sku, nama: x.nama, qty: x.qty, nettPer: x.nettPer, modal, nilai: x.qty * x.nettPer, profit: x.qty * (x.nettPer - modal), kembaliStok: v.kembaliStok, metode: !piutang ? 'refund' : (refund > 0 ? 'campur' : 'potong_piutang'), potong: i === 0 ? potong : 0, refund: i === 0 ? refund : 0, alasan: v.alasan, oleh: currentUser?.name || '', waktu, pending: true, qid });
+      });
+      if (piutang && sisaNow - nilai <= 0) t.status = 'cod';
+      _retRebuild(); _retSave(); saveLocalData();
+      try { if (typeof _stockBarangAll !== 'undefined') { /* stok dihitung ulang dari keluar-map saat dibuka */ } } catch(e) {}
+      if (currentPage === 'transaksi') { try { loadTransaksi(); } catch(e) {} } else if (currentPage === 'piutang') loadPiutang();
+      Swal.fire({ icon: 'success', title: 'Retur tersimpan', html: `Nilai retur <b>${fmtRp(nilai)}</b><br>${piutang ? (refund > 0 ? 'Memotong piutang ' + fmtRp(potong) + ' · uang kembali ' + fmtRp(refund) : 'Memotong sisa piutang ' + fmtRp(potong)) : 'Uang dikembalikan ke pelanggan ' + fmtRp(nilai)}<br>${v.kembaliStok ? 'Stok barang dikembalikan.' : 'Barang tidak dikembalikan ke stok.'}`, confirmButtonText: 'OK' });
+    }
+    function returHapus(gid) {
+      if (currentUser?.role !== 'admin') return;
+      const g = _retGroups().find(x => x.id === gid); if (!g) return;
+      Swal.fire(_delOpts('Batalkan retur ini?', esc(g.customer||'-') + ' · <b>' + fmtRp(g.nilai) + '</b><br>Piutang dan stok kembali seperti sebelum retur.')).then(r => {
+        if (!r.isConfirmed) return;
+        const qids = new Set(returList.filter(x => x.id === gid && x.pending).map(x => x.qid));
+        returList = returList.filter(x => x.id !== gid); _retRebuild(); _retSave();
+        const t = allTrxList.find(x => x.id === g.trxId);
+        if (t && t.status !== 'belumTransfer' && g.metode !== 'refund' && _cicPaid(t.id) + _retNilai(t.id) < (t.nett||0)) t.status = 'belumTransfer';
+        saveLocalData();
+        if (qids.size && typeof _syncQueue !== 'undefined') { for (let i = _syncQueue.length - 1; i >= 0; i--) if (qids.has(_syncQueue[i].qid)) _syncQueue.splice(i, 1); try { _saveSyncQueueState(); } catch(e) {} }
+        else enqueueSync('deleteRetur', [gid], 'Batalkan retur');
+        if (currentPage === 'retur') loadRetur();
+        Swal.fire({ toast:true, position:'top-end', showConfirmButton:false, timer:1800, icon:'success', title:'Retur dibatalkan' });
+      });
+    }
+    function loadRetur() {
+      const g = _retGroups(), isAdmin = currentUser?.role === 'admin';
+      const bulan = localDateStr().substring(0,7), gBulan = g.filter(x => String(x.tgl).startsWith(bulan));
+      const totBulan = gBulan.reduce((a,x) => a + x.nilai, 0), qtyBulan = gBulan.reduce((a,x) => a + x.qty, 0);
+      document.getElementById('contentArea').innerHTML = `
+        ${_pgHero('fa-rotate-left','Retur Barang', 'Bulan ini · ' + gBulan.length + ' retur · ' + qtyBulan + ' pcs', fmtRp(totBulan), 'Total Retur Bulan Ini')}
+        <div class="card">
+          <div class="card-title"><i class="fas fa-rotate-left"></i> Daftar Retur</div>
+          <div class="text-sm" style="color:var(--text3);margin-bottom:8px">Retur dibuat dari menu <b>Transaksi</b> (tombol ↩ Retur, khusus admin). Omzet dan profit dikurangi pada tanggal retur; stok kembali bila dicentang.</div>
+          ${g.length ? `<div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Customer</th><th>Barang</th><th style="text-align:right">Nilai</th><th>Penyelesaian</th><th>Stok</th>${isAdmin ? '<th></th>' : ''}</tr></thead><tbody>${g.map(x => `<tr><td>${esc(fmtDate(x.tgl))}${x.pending ? ' <span style="color:#F59E0B" title="Menunggu sinkron">⏳</span>' : ''}</td><td><b>${esc(x.customer||'-')}</b><div style="font-size:.66rem;opacity:.7">${esc(x.trxId)}</div></td><td>${x.items.map(i => esc(i.nama) + ' ×' + i.qty).join('<br>')}<div style="font-size:.66rem;opacity:.7">${esc(x.alasan||'')}</div></td><td style="text-align:right;color:#DC2626">-${fmtRp(x.nilai)}</td><td>${x.metode === 'refund' ? 'Uang kembali' : (x.metode === 'campur' ? 'Potong piutang + uang kembali' : 'Potong piutang')}</td><td>${x.kembaliStok ? '✅ kembali' : '— tidak'}</td>${isAdmin ? `<td><button class="btn btn-sm tx-b-del" onclick="returHapus('${esc(x.id)}')" title="Batalkan retur">🗑</button></td>` : ''}</tr>`).join('')}</tbody></table></div>` : '<div class="text-center text-sm" style="padding:30px;color:var(--text3)">Belum ada retur.</div>'}
+        </div>`;
+    }
     async function cicilanSync() {
       try {
         const r = await gasCall('getCicilan', []);
@@ -3898,12 +4035,13 @@
     }
     function _nettCell(t) {
       const paid = _cicPaid(t.id);
-      return paid > 0 ? `${fmtRp(_sisa(t))}<div style="font-size:.62rem;font-weight:600;opacity:.75;white-space:nowrap">dari ${fmtRp(t.nett||0)} · dibayar ${fmtRp(paid)}</div>` : fmtRp(t.nett||0);
+      const rt = _retNilai(t.id);
+      return (paid > 0 || rt > 0) ? `${fmtRp(_sisa(t))}<div style="font-size:.62rem;font-weight:600;opacity:.75;white-space:nowrap">dari ${fmtRp(t.nett||0)}${paid > 0 ? ' · dibayar ' + fmtRp(paid) : ''}${rt > 0 ? ' · retur ' + fmtRp(rt) : ''}</div>` : fmtRp(t.nett||0);
     }
     function _cicMetodeLabel(m) { return m === 'transfer' ? 'Transfer' : m === 'qris' ? 'QRIS' : 'COD'; }
     function cicilUI(id) {
       const t = allTrxList.find(x => x.id === id); if (!t) return;
-      const paid = _cicPaid(id), sisa = Math.max(0, (t.nett||0) - paid);
+      const paid = _cicPaid(id), sisa = _sisa(t);
       if (sisa <= 0) return Swal.fire('Info', 'Transaksi ini tidak punya sisa piutang.', 'info');
       const hist = cicilanList.filter(c => c.trxId === id).sort((a,b) => String(a.tgl).localeCompare(String(b.tgl)));
       window._cicMetode = 'cod';
@@ -3940,7 +4078,7 @@
     }
     function cicilSimpan(id, v) {
       const t = allTrxList.find(x => x.id === id); if (!t) return;
-      const sisa = Math.max(0, (t.nett||0) - _cicPaid(id));
+      const sisa = _sisa(t);
       const cid = 'CIC-L' + Date.now().toString(36) + Math.floor(Math.random()*1e4);
       const now = new Date(); const waktu = localDateStr() + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
       const entry = { id: cid, trxId: id, tgl: v.tgl, jumlah: v.jumlah, metode: v.metode, oleh: currentUser?.name || '', catatan: v.catatan, waktu, pending: true };
@@ -3990,7 +4128,7 @@
         if (!r.isConfirmed) return;
         cicilanList = cicilanList.filter(x => x.id !== cid); _cicRebuild(); _cicSave();
         const t = allTrxList.find(x => x.id === c.trxId);
-        if (t && t.status !== 'belumTransfer' && _cicPaid(t.id) < (t.nett||0)) t.status = 'belumTransfer';
+        if (t && t.status !== 'belumTransfer' && _cicPaid(t.id) + _retNilai(t.id) < (t.nett||0)) t.status = 'belumTransfer';
         saveLocalData();
         if (!c.pending) enqueueSync('deleteCicilan', [cid], 'Hapus cicilan');
         if (currentPage === 'piutang') loadPiutang();
@@ -4171,29 +4309,40 @@
         const bad = cs.overLimit || cs.overDue;
         h += `<div style="margin-top:6px;padding:8px 10px;border-radius:10px;font-size:.74rem;font-weight:700;background:${bad?'rgba(220,38,38,.12)':'rgba(245,158,11,.12)'};color:${bad?'#DC2626':'#D97706'};border:1px solid ${bad?'rgba(220,38,38,.35)':'rgba(245,158,11,.35)'}">${bad?'⚠️':'ℹ️'} Piutang ${fmtRp(cs.total)} (${cs.count} trx, tertua ${cs.days} hari)${cs.overLimit?` · melewati batas ${fmtRp(cs.limit)}`:''}${cs.overDue?` · lewat ${appConfig.kredit.maxHari} hari`:''}</div>`;
       }
-      if (allTrxList.some(t => (t.customer||'') === name)) h += `<button type="button" class="btn btn-sm btn-outline" style="margin-top:6px" onclick="repeatLastOrder()"><i class="fas fa-rotate-right"></i> Ulangi pesanan terakhir</button>`;
+      { const _nm = x => String(x||'').trim().replace(/\s+/g,' ').toLowerCase(), _mine = allTrxList.filter(t => _nm(t.customer) === _nm(name)).sort(window._trxNewestFirst || (() => 0));
+        if (_mine.length) h += `<button type="button" class="btn btn-sm btn-outline" style="margin-top:6px" onclick="repeatLastOrder()"><i class="fas fa-rotate-right"></i> Ulangi pesanan terakhir <span style="opacity:.75;font-weight:600">(${esc(fmtDate(_mine[0].tgl))})</span></button>`; }
       el.innerHTML = h;
     }
     async function repeatLastOrder() {
+      const norm = x => String(x||'').trim().replace(/\s+/g,' ').toLowerCase();
       const name = (document.getElementById('trxCust')?.value || '').trim(); if (!name) return;
-      const last = allTrxList.filter(t => (t.customer||'') === name).sort((a,b) => String(b.createdAt||b.tgl||'').localeCompare(String(a.createdAt||a.tgl||'')) || String(b.id).localeCompare(String(a.id)))[0];
+      const cmp = window._trxNewestFirst || ((a,b) => String(b.tgl||'').localeCompare(String(a.tgl||'')) || String(b.id).localeCompare(String(a.id)));
+      const mine = allTrxList.filter(t => norm(t.customer) === norm(name)).sort(cmp);
+      const last = mine[0];
       if (!last) return Swal.fire('Info', 'Belum ada transaksi sebelumnya untuk pelanggan ini.', 'info');
-      let items = last.items;
-      if (!Array.isArray(items) || !items.length) {
-        try { const d = await gasCall('getTrxDetail', [last.id]); items = d && d.items; } catch(e) {}
-      }
-      if (!Array.isArray(items) || !items.length) return Swal.fire('Info', 'Detail item transaksi terakhir tidak tersedia.', 'info');
+      // Ambil detail dari server dulu (paling akurat); bila gagal pakai item yang tersimpan di HP ini
+      let items = null;
+      try { const d = await gasCall('getTrxDetail', [last.id]); if (d && Array.isArray(d.items) && d.items.length) items = d.items; } catch(e) {}
+      if (!items && Array.isArray(last.items) && last.items.length) items = last.items;
+      if (!Array.isArray(items) || !items.length) return Swal.fire('Info', 'Detail item transaksi terakhir (' + last.id + ') tidak tersedia.', 'info');
+      const ts = window._trxTs ? window._trxTs(last) : 0;
+      const waktu = ts ? new Date(ts).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }).replace('.', ':') : '';
+      const info = fmtDate(last.tgl) + (waktu ? ' ' + waktu : '') + ' · ' + last.id;
       const have = [...document.querySelectorAll('#itemsContainer [data-field="sku"]')].some(i => i.value.trim());
-      if (have) { const c = await Swal.fire({ title:'Ganti isi keranjang?', text:'Item yang sudah diisi akan diganti dengan pesanan terakhir ' + name + ' (' + fmtDate(last.tgl) + ').', icon:'question', showCancelButton:true, confirmButtonText:'Ya, ganti', cancelButtonText:'Batal' }); if (!c.isConfirmed) return; }
+      if (have) { const c = await Swal.fire({ title:'Ganti isi keranjang?', text:'Item yang sudah diisi akan diganti dengan pesanan terakhir ' + name + ' (' + info + ').', icon:'question', showCancelButton:true, confirmButtonText:'Ya, ganti', cancelButtonText:'Batal' }); if (!c.isConfirmed) return; }
       document.getElementById('itemsContainer').innerHTML = '';
+      const missing = [];
       items.forEach(it => {
         addItemRow(it.sku);
         const row = [...document.querySelectorAll('#itemsContainer .cart-item-row')].pop(); if (!row) return;
+        if (!products.some(p => String(p.sku).toLowerCase() === String(it.sku||'').toLowerCase())) { missing.push(it.nama || it.sku); const n = row.querySelector('[data-field="nama"]'); if (n) n.value = it.nama || ''; }
         const q = row.querySelector('[data-field="qty"]'); if (q) q.value = it.qty || 1;
-        const d = row.querySelector('[data-field="disc"]'); if (d && it.discRpPer) d.value = it.discRpPer;
+        const h = row.querySelector('[data-field="harga"]'); if (h && it.harga !== undefined && it.harga !== null && it.harga !== '') h.value = it.harga;   // harga persis seperti pesanan itu
+        const d = row.querySelector('[data-field="disc"]'); if (d) d.value = it.discRpPer || '';
       });
       recalcTotals();
-      Swal.fire({ toast:true, position:'top-end', showConfirmButton:false, timer:1800, icon:'success', title:'Pesanan terakhir dimuat — cek harga & qty' });
+      Swal.fire({ toast:true, position:'top-end', showConfirmButton:false, timer: missing.length ? 4500 : 2600, icon: missing.length ? 'warning' : 'success',
+        title: missing.length ? 'Dimuat dari ' + info + '. Produk tidak ada di daftar: ' + missing.join(', ') : 'Dimuat dari ' + info + ' — cek harga & qty' });
     }
     // Peringatan sebelum simpan transaksi: kredit, diskon besar, harga di bawah modal
     function trxWarnings(customer, status, items, gross, nett) {
@@ -4279,7 +4428,7 @@
       const list = (products||[]).filter(p => p && p.sku);
       if (!list.length) { Swal.fire('Info', 'Belum ada produk.', 'info'); return; }
       Swal.fire({ title: 'Batas Minimum Stok', width: 520, showCancelButton: true, confirmButtonText: 'Simpan', cancelButtonText: 'Batal',
-        html: `<div style="text-align:left;font-size:.78rem;color:#6B84A0;margin-bottom:8px">Isi jumlah minimum per SKU. Kosongkan / 0 untuk tidak dipantau. Tersinkron ke semua perangkat.</div><div style="max-height:50vh;overflow:auto">${list.map(p => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0"><div style="flex:1;text-align:left;font-weight:600;font-size:.82rem">${esc(p.nama||p.sku)}<div style="font-size:.65rem;color:#6B84A0">${esc(p.sku)}</div></div><input type="number" min="0" class="swal2-input msInp" data-sku="${esc(p.sku)}" value="${mins[p.sku]||''}" placeholder="0" style="width:90px;margin:0;text-align:right"></div>`).join('')}</div>`,
+        html: `<div style="text-align:left;font-size:.78rem;color:#4A6283;margin-bottom:8px">Isi jumlah minimum per SKU. Kosongkan / 0 untuk tidak dipantau. Tersinkron ke semua perangkat.</div><div style="max-height:50vh;overflow:auto">${list.map(p => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0"><div style="flex:1;text-align:left;font-weight:600;font-size:.82rem">${esc(p.nama||p.sku)}<div style="font-size:.65rem;color:#4A6283">${esc(p.sku)}</div></div><input type="number" min="0" class="swal2-input msInp" data-sku="${esc(p.sku)}" value="${mins[p.sku]||''}" placeholder="0" style="width:90px;margin:0;text-align:right"></div>`).join('')}</div>`,
         preConfirm: () => { const o = {}; document.querySelectorAll('.msInp').forEach(i => { const v = parseInt(i.value, 10); if (v > 0) o[i.dataset.sku] = v; }); return o; }
       }).then(r => { if (!r.isConfirmed) return; try { localStorage.setItem(MINSTOK_KEY, JSON.stringify(r.value)); } catch(e) {} enqueueSync('saveMinStok', [r.value], 'Batas minimum stok'); if (currentPage === 'dashboard') _dxLoadLowStock(); Swal.fire({ toast:true, position:'top-end', showConfirmButton:false, timer:1500, icon:'success', title:'Batas minimum tersimpan' }); });
     }
@@ -4500,7 +4649,7 @@
         h3{margin:18px 0 6px;font-size:13px;color:#0A4FA8;border-bottom:2px solid #29A8FF;padding-bottom:3px}
         .kpi{display:flex;gap:8px;margin:10px 0} .kpi div{flex:1;border:1px solid #BBD7F5;border-radius:8px;padding:8px;background:#F4F9FF} .kpi b{display:block;font-size:14px;margin-top:3px}
         table{width:100%;border-collapse:collapse} th{background:#0A4FA8;color:#fff;text-align:left;padding:5px 6px;font-size:10px} td{padding:4px 6px;border-bottom:1px solid #E3EDF8} .r{text-align:right} tr{page-break-inside:avoid}
-        .foot{margin-top:16px;color:#6B84A0;font-size:9px}</style></head><body>
+        .foot{margin-top:16px;color:#4A6283;font-size:9px}</style></head><body>
         <h1>${esc(settings.namaToko || 'Tirta Kencana')}</h1><div class="sub">Laporan Penjualan · ${esc(fmtDate(d.from))} – ${esc(fmtDate(d.to))} · dicetak ${esc(fmtDate(localDateStr()))}</div>
         <div class="kpi"><div>Omzet<b>${R(d.omzet)}</b></div><div>Modal<b>${R(d.cost)}</b></div><div>Profit<b>${R(d.profit)}</b></div><div>Margin<b>${d.margin.toFixed(1)}%</b></div><div>Transaksi<b>${d.trxs.length}</b></div></div>
         ${d.noItems ? `<div style="color:#B45309">* ${d.noItems} transaksi tanpa detail item tidak ikut perhitungan profit.</div>` : ''}
@@ -4762,7 +4911,7 @@
       const btn = document.getElementById('btnBackupNow'); if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Membuat backup…'; }
       try {
         const r = await gasCall('backupNow', [], 0);
-        Swal.fire({ icon:'success', title:'Backup berhasil', html:`<div style="font-size:.85rem">${esc(r?.name||'')}<br><span style="color:#6B84A0">Tersimpan ${r?.kept||'?'} salinan</span></div>` });
+        Swal.fire({ icon:'success', title:'Backup berhasil', html:`<div style="font-size:.85rem">${esc(r?.name||'')}<br><span style="color:#4A6283">Tersimpan ${r?.kept||'?'} salinan</span></div>` });
       } catch(e) {
         Swal.fire({ icon:'error', title:'Backup gagal / belum selesai', text:(e.message||String(e)) + ' — cek folder “Backup Tirta Kencana” di Drive, mungkin tetap berhasil.' });
       }
@@ -6040,7 +6189,7 @@
           const cl = document.getElementById('sbSkuCheckList');
           if (cl) {
             cl.innerHTML = skus.map(s => `
-              <label data-search="${s.toLowerCase()}" style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:0.78rem;font-weight:500;color:var(--text);" onmouseover="this.style.background='var(--biru-muda)'" onmouseout="this.style.background=''">
+              <label data-search="${s.toLowerCase()}" style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;color:var(--text);" onmouseover="this.style.background='var(--biru-muda)'" onmouseout="this.style.background=''">
                 <input type="checkbox" value="${s}" ${_sbSelectedSkus.has(s) ? 'checked' : ''} onchange="toggleSbSku(this.value)" style="width:auto;accent-color:var(--biru);cursor:pointer;"> ${s}
               </label>`).join('');
           }
@@ -6091,6 +6240,8 @@
           map.set(key, (map.get(key)||0) + (it.qty||0));
         });
       });
+      // [v16] retur yang dikembalikan ke stok mengurangi 'keluar' pada tanggal retur
+      returList.forEach(r => { const tg = String(r.tgl||'').substring(0,10); if (r.kembaliStok !== false && dateSet.has(tg)) { const key = tg + '|' + (r.sku||''); map.set(key, (map.get(key)||0) - (Number(r.qty)||0)); } });
       return map;
     }
     // [NEW] Sync Stock Barang KHUSUS HARI INI - beda dengan syncStockBarangToSheet()
@@ -6491,7 +6642,7 @@
         const ok = r.hasVal && r.selisih === 0;
         const q = r.hasVal ? (ok ? 'Cocok' : (r.selisih>0?'+':'')+r.selisih) : 'Belum';
         return { n:esc(r.nama), sub:esc(r.sku), q,
-          qc: r.hasVal ? (ok ? '#047857' : '#DC2626') : '#6B84A0', qbg: r.hasVal ? (ok ? '#D5F5E6' : '#FFE0E0') : '#EAF0F6',
+          qc: r.hasVal ? (ok ? '#047857' : '#DC2626') : '#4A6283', qbg: r.hasVal ? (ok ? '#D5F5E6' : '#FFE0E0') : '#EAF0F6',
           v:'Stock '+r.stock+' · Cek '+(r.hasVal ? r.cekStock : '-') };
       });
       return _rcRoot('cekstock-root', 380,
@@ -7106,26 +7257,50 @@
     // ========== SARAN ORDER (prediksi dari penjualan 28 hari terakhir) ==========
     const PRED_COVER_KEY = 'tirtaPredCover';
     function _predCover() { const v = parseInt(localStorage.getItem(PRED_COVER_KEY), 10); return v > 0 ? v : 7; }
+    // Prediksi memakai pola HARI dalam seminggu (mis. Senin selalu ramai, Minggu tutup) dari 56 hari terakhir,
+    // dicampur rata-rata 28 hari terakhir. Retur dikurangkan dari penjualan.
+    const _HARI = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+    function _dowOf(ds) { const [y,m,d] = ds.split('-').map(Number); return new Date(y, m-1, d).getDay(); }
     async function loadPrediksiOrder() {
       const today = localDateStr();
       let daily = [];
-      try { daily = await gasCall('getSkuDaily', [28], 0) || []; } catch(e) { window._pesananPred = { error: e.message || String(e) }; _renderPrediksiCard(); return; }
+      try { daily = await gasCall('getSkuDaily', [56], 0) || []; } catch(e) { window._pesananPred = { error: e.message || String(e) }; _renderPrediksiCard(); return; }
       let stock = []; try { stock = await getCorrectedStockBarangForDate(today); } catch(e) {}
       const cover = _predCover();
-      const dates = new Set(daily.map(x => x.tgl)); const activeDays = Math.max(1, dates.size);
-      const cut14 = localDateStr(new Date(Date.now() - 13*86400000));
-      const by = {};
-      daily.forEach(x => { const o = by[x.sku] || (by[x.sku] = { sku:x.sku, nama:x.nama||x.sku, total:0, last:0, prev:0 }); o.total += x.qty||0; if (x.tgl >= cut14) o.last += x.qty||0; else o.prev += x.qty||0; });
+      const retMap = {}; returList.forEach(r => { const k = String(r.tgl).substring(0,10) + '|' + r.sku; retMap[k] = (retMap[k]||0) + (Number(r.qty)||0); });
+      daily = daily.map(x => ({ ...x, qty: Math.max(0, (x.qty||0) - (retMap[x.tgl + '|' + x.sku]||0)) }));
+      const dates = [...new Set(daily.map(x => x.tgl))].sort();
+      const wdCount = [0,0,0,0,0,0,0]; dates.forEach(d => { wdCount[_dowOf(d)]++; });
+      const cut28 = localDateStr(new Date(Date.now() - 27*86400000)), cut14 = localDateStr(new Date(Date.now() - 13*86400000));
+      const act28 = Math.max(1, dates.filter(d => d >= cut28).length);
+      const trustZero = dates.length >= 14; // baru percaya "hari tutup" bila datanya cukup
+      const by = {}, wdAll = [0,0,0,0,0,0,0];
+      daily.forEach(x => {
+        const o = by[x.sku] || (by[x.sku] = { sku:x.sku, nama:x.nama||x.sku, t28:0, last:0, prev:0, wd:[0,0,0,0,0,0,0] });
+        const w = _dowOf(x.tgl); o.wd[w] += x.qty||0; wdAll[w] += x.qty||0;
+        if (x.tgl >= cut28) o.t28 += x.qty||0;
+        if (x.tgl >= cut14) o.last += x.qty||0; else if (x.tgl >= cut28) o.prev += x.qty||0;
+      });
+      const f = (o, avg, offset) => { // perkiraan penjualan hari ke-offset dari sekarang
+        const dt = new Date(); dt.setDate(dt.getDate() + offset); const w = dt.getDay(), n = wdCount[w];
+        if (n === 0) return trustZero ? 0 : avg;
+        const wdAvg = o.wd[w] / n;
+        return n >= 3 ? 0.65 * wdAvg + 0.35 * avg : avg;
+      };
       const rows = Object.values(by).map(o => {
         const st = stock.find(s => s.sku === o.sku); const stok = st ? (st.stokAkhir||0) : 0;
         const prod = products.find(p => p.sku === o.sku);
-        const avg = o.total / activeDays;
-        const saran = Math.max(0, Math.ceil(avg * cover - Math.max(stok, 0)));
-        const cukup = avg > 0 ? Math.max(stok, 0) / avg : null;
+        const avg = o.t28 / act28;
+        let butuh = 0; for (let i = 1; i <= cover; i++) butuh += f(o, avg, i);
+        const saran = Math.max(0, Math.ceil(butuh - Math.max(stok, 0)));
+        let cukup = null, left = Math.max(stok, 0);
+        for (let i = 1; i <= 30; i++) { const d = f(o, avg, i); if (d > 0 && left - d <= 0) { cukup = (i - 1) + left / d; break; } left -= d; if (i === 30 && butuh > 0) cukup = 30; }
         const trend = o.prev > 0 ? (o.last - o.prev) / o.prev : (o.last > 0 ? 1 : 0);
-        return { sku:o.sku, nama:(prod&&prod.nama)||o.nama, avg, stok, saran, cukup, trend };
-      }).filter(r => r.avg > 0).sort((a,b) => b.saran - a.saran || (a.cukup||99) - (b.cukup||99));
-      window._pesananPred = { rows, cover, activeDays };
+        return { sku:o.sku, nama:(prod&&prod.nama)||o.nama, avg, butuh, stok, saran, cukup, trend };
+      }).filter(r => r.avg > 0 || r.butuh > 0).sort((a,b) => b.saran - a.saran || (a.cukup==null?99:a.cukup) - (b.cukup==null?99:b.cukup));
+      const peak = wdAll.map((v,i) => ({ i, v })).filter(x => x.v > 0).sort((a,b) => b.v - a.v).slice(0,2).map(x => _HARI[x.i]);
+      const tutup = trustZero ? wdCount.map((n,i) => n === 0 ? _HARI[i] : null).filter(Boolean) : [];
+      window._pesananPred = { rows, cover, activeDays: act28, peak, tutup };
       _renderPrediksiCard();
     }
     function _renderPrediksiCard() {
@@ -7138,8 +7313,8 @@
       if (!p.rows.length) { el.innerHTML = `<div class="card">${head}<div class="text-sm" style="color:var(--text3)">Belum cukup data penjualan 28 hari terakhir.</div></div>`; return; }
       const arrow = t => t > 0.15 ? '<span style="color:#16A34A" title="Penjualan naik">▲</span>' : (t < -0.15 ? '<span style="color:#DC2626" title="Penjualan turun">▼</span>' : '<span style="color:var(--text3)">▬</span>');
       el.innerHTML = `<div class="card">${head}
-        <div class="text-sm" style="color:var(--text3);margin-bottom:8px">Berdasarkan rata-rata penjualan ${p.activeDays} hari aktif terakhir dikurangi stok sekarang.</div>
-        ${need.length ? `<div class="table-wrap"><table><thead><tr><th>Barang</th><th style="text-align:right">Rata/hari</th><th style="text-align:right">Stok</th><th style="text-align:right">Cukup</th><th style="text-align:right">Saran</th></tr></thead><tbody>${need.slice(0,15).map(r => `<tr><td style="font-weight:700">${esc(r.nama)} ${arrow(r.trend)}</td><td style="text-align:right;font-family:var(--mono)">${r.avg.toFixed(1)}</td><td style="text-align:right;font-family:var(--mono)">${r.stok}</td><td style="text-align:right;font-family:var(--mono);color:${r.cukup!==null&&r.cukup<2?'#DC2626':'inherit'}">${r.cukup===null?'-':r.cukup.toFixed(1)+' hr'}</td><td style="text-align:right;font-family:var(--mono);font-weight:900;color:#0067B8">${r.saran}</td></tr>`).join('')}</tbody></table></div>
+        <div class="text-sm" style="color:var(--text3);margin-bottom:8px">Perkiraan penjualan ${p.cover} hari ke depan memakai pola hari dalam seminggu (56 hari terakhir) dan rata-rata ${p.activeDays} hari aktif terakhir, dikurangi stok sekarang.${p.peak && p.peak.length ? ' Hari paling ramai: <b>' + p.peak.join(', ') + '</b>.' : ''}${p.tutup && p.tutup.length ? ' Biasanya libur: <b>' + p.tutup.join(', ') + '</b>.' : ''}</div>
+        ${need.length ? `<div class="table-wrap"><table><thead><tr><th>Barang</th><th style="text-align:right">Butuh</th><th style="text-align:right">Stok</th><th style="text-align:right">Cukup</th><th style="text-align:right">Saran</th></tr></thead><tbody>${need.slice(0,15).map(r => `<tr><td style="font-weight:700">${esc(r.nama)} ${arrow(r.trend)}<div style="font-size:.62rem;font-weight:600;opacity:.7">rata-rata ${r.avg.toFixed(1)}/hari</div></td><td style="text-align:right;font-family:var(--mono)">${Math.ceil(r.butuh)}</td><td style="text-align:right;font-family:var(--mono)">${r.stok}</td><td style="text-align:right;font-family:var(--mono);color:${r.cukup!==null&&r.cukup<2?'#DC2626':'inherit'}">${r.cukup===null?'-':r.cukup.toFixed(1)+' hr'}</td><td style="text-align:right;font-family:var(--mono);font-weight:900;color:#0067B8">${r.saran}</td></tr>`).join('')}</tbody></table></div>
         <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="terapkanSaranOrder()"><i class="fas fa-wand-magic-sparkles"></i> Isi ke kolom Order (${need.length} barang)</button>` : '<div class="text-sm" style="color:#16A34A;font-weight:700">✅ Stok semua barang cukup untuk ' + p.cover + ' hari ke depan.</div>'}</div>`;
     }
     function terapkanSaranOrder() {
@@ -7687,7 +7862,7 @@
         _rcStats([{ l:'Pergerakan', v:payload.todayEntries.length }, { l:'SKU Titipan', v:payload.sisaRows.length }, { l:'Total Sisa', v:totalSisa }], tone) +
         _rcBody(
           _rcInfo([{ l:'Pelanggan', v:esc(payload.customer), full:true }], tone) +
-          _rcSec({ tone, title:'<i class="fas fa-clock-rotate-left" style="color:'+t.a1+';margin-right:5px"></i>Riwayat Hari Ini', badge:payload.todayEntries.length+' entri', rows: mv.length ? mv : [{ n:'<span style="color:#6B84A0;font-weight:600">Tidak ada pergerakan hari ini</span>' }] }) +
+          _rcSec({ tone, title:'<i class="fas fa-clock-rotate-left" style="color:'+t.a1+';margin-right:5px"></i>Riwayat Hari Ini', badge:payload.todayEntries.length+' entri', rows: mv.length ? mv : [{ n:'<span style="color:#4A6283;font-weight:600">Tidak ada pergerakan hari ini</span>' }] }) +
           _rcSec({ tone:'purple', title:'<i class="fas fa-boxes-stacked" style="color:#7C3AED;margin-right:5px"></i>Sisa Titipan', badge:payload.sisaRows.length+' SKU', rows:sisa, total:{ l:'TOTAL SISA', v:String(totalSisa) } })) +
         _rcFoot(settings.bottomLine || 'Terima kasih!'));
     }
@@ -8386,7 +8561,7 @@
     function deleteProduk(idx) { const p = products[idx]; Swal.fire(_delOpts('Hapus produk?', '<b>'+esc(products[idx].nama)+'</b>')).then(r => { if (r.isConfirmed) { products.splice(idx,1); saveLocalData(); renderProdukList(); if (p) logEditAction('produk', p.sku, p.nama, p, null); Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: 'Produk dihapus' }); syncProductsToSheet(); } }); }
 
     // ========== PELANGGAN ==========
-    function loadPelanggan() { document.getElementById('contentArea').innerHTML = `<div class="card"><div class="flex-between mb-2"><div class="card-title"><i class="fas fa-address-book"></i> Daftar Pelanggan</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganToSheet()" title="Kirim data pelanggan lokal ke Google Sheets"><i class="fas fa-cloud-upload-alt"></i> Sync ke Sheets</button><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganFromSheet()" title="Ambil data pelanggan terbaru dari Google Sheets"><i class="fas fa-cloud-download-alt"></i> Sync ke Aplikasi</button><button class="btn btn-primary btn-sm" onclick="addPelanggan()">+ Tambah</button></div></div><input id="pelangganSearch" class="form-control mb-2" placeholder="🔍 Cari nama pelanggan…" oninput="renderPelangganList()"><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th style="text-align:center" title="Jumlah transaksi bulan ini">Transaksi<br><span style="font-weight:400;font-size:0.6rem;opacity:.7">Bulan Ini</span></th><th style="text-align:right">Piutang</th><th>Aksi</th></tr></thead><tbody id="pelangganTbody"></tbody></table></div><div id="pelangganPaginationBar"></div></div>`; renderPelangganList(); }
+    function loadPelanggan() { document.getElementById('contentArea').innerHTML = `<div class="card"><div class="flex-between mb-2"><div class="card-title"><i class="fas fa-address-book"></i> Daftar Pelanggan</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganToSheet()" title="Kirim data pelanggan lokal ke Google Sheets"><i class="fas fa-cloud-upload-alt"></i> Sync ke Sheets</button><button class="btn btn-outline btn-sm" onclick="btnSyncPelangganFromSheet()" title="Ambil data pelanggan terbaru dari Google Sheets"><i class="fas fa-cloud-download-alt"></i> Sync ke Aplikasi</button><button class="btn btn-primary btn-sm" onclick="addPelanggan()">+ Tambah</button></div></div><input id="pelangganSearch" class="form-control mb-2" placeholder="🔍 Cari nama pelanggan…" oninput="renderPelangganList()"><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th style="text-align:center" title="Jumlah transaksi bulan ini">Transaksi<br><span style="font-weight:600;font-size:0.6rem;opacity:.7">Bulan Ini</span></th><th style="text-align:right">Piutang</th><th>Aksi</th></tr></thead><tbody id="pelangganTbody"></tbody></table></div><div id="pelangganPaginationBar"></div></div>`; renderPelangganList(); }
     function renderPelangganList(_pgKeep = false) {
       const tb = document.getElementById('pelangganTbody');
       if (!tb) return;
@@ -8520,7 +8695,7 @@
       const trows = rows.map(tx => {
         const items = tx.items || [];
         const isum = items.length ? (items.length > 1 ? `${esc(items[0].nama||items[0].sku||'-')} +${items.length-1} lainnya` : esc(items[0].nama||items[0].sku||'-')) : '-';
-        const c = stCol[tx.status] || ['#6B84A0','#EAF0F6'];
+        const c = stCol[tx.status] || ['#4A6283','#EAF0F6'];
         return { n:esc(fmtDate(tx.tgl)), sub:isum, q:fmtRp(tx.nett||0), qc:c[0], qbg:c[1], v:esc(statusLabel[tx.status]||tx.status||'-') };
       });
       const piu = stats.totalPiutang > 0;
@@ -9592,6 +9767,26 @@ if ('serviceWorker' in navigator) {
     try { _trxLocalOrder = JSON.parse(localStorage.getItem(LOCAL_ORDER_KEY) || '{}') || {}; } catch (e) { _trxLocalOrder = {}; }
     var _knownTrxIds = {};
     Object.keys(_trxLocalOrder).forEach(function(k) { _knownTrxIds[k] = true; });
+    // [FIX] Cap waktu transaksi yang akurat: createdAt dari server (bisa berupa teks 'yyyy-MM-dd HH:mm:ss' atau tanggal-jam dari Sheets),
+    // atau cap waktu lokal bila transaksi baru diinput di HP ini dan belum sinkron. Dipakai "Ulangi pesanan terakhir".
+    window._trxTs = function(t) {
+      if (!t) return 0;
+      var ca = t.createdAt;
+      if (ca) {
+        var m = String(ca).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)).getTime();
+        var d = Date.parse(String(ca)); if (!isNaN(d)) return d;
+      }
+      var lo = _trxLocalOrder[t.id]; if (lo !== undefined) return Math.floor(lo);
+      return 0;
+    };
+    window._trxNewestFirst = function(a, b) {
+      var dc = String(b.tgl || '').substring(0, 10).localeCompare(String(a.tgl || '').substring(0, 10));
+      if (dc !== 0) return dc;
+      var ta = window._trxTs(a), tb = window._trxTs(b);
+      if (ta !== tb) return tb - ta;
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    };
 
     function _persistLocalOrder() {
       try {
