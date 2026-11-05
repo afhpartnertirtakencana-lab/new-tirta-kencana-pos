@@ -1914,18 +1914,18 @@
         });
       } else {
         const L = '━━━━━━━━━━━━━━━━━━━━━━';
-        const lines = ['📊 *' + p.waTitle + '*', '*' + (settings.namaToko || 'Tirta Kencana') + '*', L, p.waSub, L];
+        const lines = _waHead('📊', p.waTitle, p.waSub ? ['🗓️ ' + p.waSub] : []);
         if (!p.sections || p.allStats) { p.stats.forEach(x => lines.push(x.l + ': ' + x.v)); }
         else lines.push('Total Modal: ' + p.stats[0].v);
         lines.push(L);
         if (p.sections) {
-          p.sections.forEach(sc => { lines.push('*' + sc.plainTitle + '*'); sc.rows.forEach((r, i) => { lines.push((i + 1) + '. ' + r.nPlain + ' — ' + r.q + (r.v ? ' (' + r.v + ')' : '')); if (r.subPlain) lines.push('    ' + r.subPlain); }); if (sc.total) lines.push('_' + sc.total.l + ': ' + sc.total.v + '_'); lines.push(''); });
+          p.sections.forEach(sc => { lines.push('📍 *' + sc.plainTitle + '*'); sc.rows.forEach((r, i) => { lines.push((i + 1) + '. ' + r.nPlain + ' — *' + r.q + '*' + (r.v ? ' (' + r.v + ')' : '')); if (r.subPlain) lines.push('    ' + r.subPlain); }); if (sc.total) lines.push('_' + sc.total.l + ': ' + sc.total.v + '_'); lines.push(''); });
           lines.push(L, '*' + p.total.l + ': ' + p.total.v + '*');
         } else {
-        p.rows.forEach((r, i) => lines.push((i + 1) + '. ' + r.nPlain + ' — ' + r.q + (r.v ? ' (' + r.v + ')' : '')));
+        p.rows.forEach((r, i) => lines.push((i + 1) + '. ' + r.nPlain + ' — *' + r.q + '*' + (r.v ? ' (' + r.v + ')' : '')));
         lines.push(L, '*' + p.total.l + ': ' + p.total.v + '*');
         }
-        window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+        _waOpen(lines);
       }
     }
 
@@ -2966,7 +2966,7 @@
         _rcFoot(settings.bottomLine));
     }
 
-    function showStrukModal() { if (!_strKData) return; const html = buildStrukHTML(_strKData); document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk</h2><button class="modal-close" onclick="closeStruk()">✕</button></div>${_strKData.trx.customer && !_strKData._loading ? `<button type="button" class="btn btn-block" style="background:linear-gradient(135deg,#16A34A,#25D366);color:#fff;border:none;height:48px;font-weight:800;margin:0 0 12px;border-radius:12px" onclick="doStrukWaPelanggan()">📤 Kirim Struk ke ${esc(_strKData.trx.customer)}</button>` : ''}<div class="action-grid"><div class="action-card" onclick="doStrukPrint()"><div style="font-size:28px">🖨️</div><div style="font-size:13px;font-weight:700">Print</div></div><div class="action-card" onclick="doStrukPng()"><div style="font-size:28px">📥</div><div style="font-size:13px;font-weight:700">Download PNG</div></div><div class="action-card" onclick="doStrukWA()"><div style="font-size:28px">💬</div><div style="font-size:13px;font-weight:700">WhatsApp</div></div><div class="action-card" onclick="doStrukWaPelanggan()"><div style="font-size:28px">📤</div><div style="font-size:13px;font-weight:700">Kirim ke Pelanggan</div></div><div class="action-card" onclick="document.getElementById('fotoInputStruk').click()"><div style="font-size:28px">📸</div><div style="font-size:13px;font-weight:700">Upload Foto</div></div><div class="action-card" onclick="showFotoBukti('${_strKData?.id||''}','Struk ${_strKData?.id||''}')"><div style="font-size:28px">🖼</div><div style="font-size:13px;font-weight:700">Lihat Foto</div></div></div><input type="file" id="fotoInputStruk" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoBukti('${_strKData?.id||''}','transfer',this)"><div style="border:1px solid var(--border);border-radius:14px;overflow:auto;max-height:480px;background:#e8f2f9;padding:14px"><div style="width:360px;margin:0 auto">${html}</div></div>`; document.getElementById('strukModal').classList.add('show'); }
+    function showStrukModal() { if (!_strKData) return; const html = buildStrukHTML(_strKData); document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk</h2><button class="modal-close" onclick="closeStruk()">✕</button></div>${_strKData.trx.customer && !_strKData._loading ? `<button type="button" class="btn btn-block" style="background:linear-gradient(135deg,#16A34A,#25D366);color:#fff;border:none;height:48px;font-weight:800;margin:0 0 12px;border-radius:12px" onclick="doStrukWaPelanggan()">📤 Kirim Struk ke ${esc(_strKData.trx.customer)}</button>` : ''}<div class="action-grid"><div class="action-card" onclick="doStrukPrint()"><div style="font-size:28px">🖨️</div><div style="font-size:13px;font-weight:700">Print</div></div><div class="action-card" onclick="doStrukPng()"><div style="font-size:28px">📥</div><div style="font-size:13px;font-weight:700">Download PDF</div></div><div class="action-card" onclick="doStrukWA()"><div style="font-size:28px">💬</div><div style="font-size:13px;font-weight:700">WhatsApp</div></div><div class="action-card" onclick="doStrukWaPelanggan()"><div style="font-size:28px">📤</div><div style="font-size:13px;font-weight:700">Kirim ke Pelanggan</div></div><div class="action-card" onclick="document.getElementById('fotoInputStruk').click()"><div style="font-size:28px">📸</div><div style="font-size:13px;font-weight:700">Upload Foto</div></div><div class="action-card" onclick="showFotoBukti('${_strKData?.id||''}','Struk ${_strKData?.id||''}')"><div style="font-size:28px">🖼</div><div style="font-size:13px;font-weight:700">Lihat Foto</div></div></div><input type="file" id="fotoInputStruk" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoBukti('${_strKData?.id||''}','transfer',this)"><div style="border:1px solid var(--border);border-radius:14px;overflow:auto;max-height:480px;background:#e8f2f9;padding:14px"><div style="width:360px;margin:0 auto">${html}</div></div>`; document.getElementById('strukModal').classList.add('show'); }
 
     // [NEW] Cek Transaksi Publik - dipanggil dari #publicCekPage (index.html), TANPA login.
     // Sama sekali tidak menyentuh currentUser/sessionToken. Cetak strukturnya pakai ULANG
@@ -2995,7 +2995,7 @@
     function showPublicStrukModal() {
       if (!_strKData) return;
       const html = buildStrukHTML(_strKData);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Transaksi</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doStrukPrint()"><div style="font-size:28px">🖨️</div><div style="font-size:13px;font-weight:700">Print</div></div><div class="action-card" onclick="doStrukPng()"><div style="font-size:28px">📥</div><div style="font-size:13px;font-weight:700">Download PNG</div></div><div class="action-card" onclick="doStrukWA()"><div style="font-size:28px">💬</div><div style="font-size:13px;font-weight:700">WhatsApp</div></div></div><div style="border:1px solid var(--border);border-radius:14px;overflow:auto;max-height:480px;background:#e8f2f9;padding:14px"><div style="width:360px;margin:0 auto">${html}</div></div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Transaksi</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doStrukPrint()"><div style="font-size:28px">🖨️</div><div style="font-size:13px;font-weight:700">Print</div></div><div class="action-card" onclick="doStrukPng()"><div style="font-size:28px">📥</div><div style="font-size:13px;font-weight:700">Download PDF</div></div><div class="action-card" onclick="doStrukWA()"><div style="font-size:28px">💬</div><div style="font-size:13px;font-weight:700">WhatsApp</div></div></div><div style="border:1px solid var(--border);border-radius:14px;overflow:auto;max-height:480px;background:#e8f2f9;padding:14px"><div style="width:360px;margin:0 auto">${html}</div></div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function closeStruk() { document.getElementById('strukModal').classList.remove('show'); }
@@ -3150,7 +3150,7 @@
         _rcFoot(settings.bottomLine));
     }
 
-    function showSetoranStrukModal(payload) { const html = buildSetoranStrukHTML(payload); const setoranKey = (payload.sales||'')+'_'+(payload.tgl||''); document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Setoran</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doSetoranPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doSetoranPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doSetoranWA()"><div>💬</div><div>WhatsApp</div></div><div class="action-card" onclick="document.getElementById('fotoInputSetoran').click()"><div>📸</div><div>Upload Foto</div></div><div class="action-card" onclick="showFotoBukti('${setoranKey}','Setoran ${setoranKey}')"><div>🖼</div><div>Lihat Foto</div></div></div><input type="file" id="fotoInputSetoran" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoBukti('${setoranKey}','setoran',this)"><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px"><img src="" id="setoranStrukImg" style="max-width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1)" alt="Struk Setoran"></div>`; document.getElementById('strukModal').classList.add('show');
+    function showSetoranStrukModal(payload) { const html = buildSetoranStrukHTML(payload); const setoranKey = (payload.sales||'')+'_'+(payload.tgl||''); document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Setoran</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doSetoranPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doSetoranPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doSetoranWA()"><div>💬</div><div>WhatsApp</div></div><div class="action-card" onclick="document.getElementById('fotoInputSetoran').click()"><div>📸</div><div>Upload Foto</div></div><div class="action-card" onclick="showFotoBukti('${setoranKey}','Setoran ${setoranKey}')"><div>🖼</div><div>Lihat Foto</div></div></div><input type="file" id="fotoInputSetoran" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoBukti('${setoranKey}','setoran',this)"><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px"><img src="" id="setoranStrukImg" style="max-width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1)" alt="Struk Setoran"></div>`; document.getElementById('strukModal').classList.add('show');
       setTimeout(() => {
         _ensureLogoDataUrl(_logoUrl).then(logoData => {
           const off = document.getElementById('strukOffscreen'); off.innerHTML = buildSetoranStrukHTML(payload, logoData); const el = off.querySelector('#setoran-root');
@@ -3366,7 +3366,7 @@
     }
 
     // [NEW] Cetak struk setoran dari baris Rekap Setoran, memakai modal struk yang SAMA persis dengan menu Setoran
-    // (Print / Download PNG / WhatsApp) — tidak membuat tampilan/struk baru, hanya memanggil ulang infrastruktur yang sudah ada.
+    // (Print / Download PDF / WhatsApp) — tidak membuat tampilan/struk baru, hanya memanggil ulang infrastruktur yang sudah ada.
     function cetakRekapSetoranRow(i) {
       const s = setoranHistory[i];
       if (!s) return;
@@ -3836,7 +3836,7 @@
     }
     function showPiutangCustomerStrukModal(payload) {
       const html = buildPiutangCustomerStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Rekap Piutang per Customer</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPiutangCustomerPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPiutangCustomerPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doPiutangCustomerWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Rekap Piutang per Customer</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPiutangCustomerPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPiutangCustomerPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doPiutangCustomerWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doPiutangCustomerPrint() {
@@ -3871,12 +3871,10 @@
       if (!_lastPiutangCustomerPayload) return;
       const p = _lastPiutangCustomerPayload;
       const agingLabel = window._piutangAgingLabel || (() => ({label:'-'}));
-      let lines = ['📋 *REKAP PIUTANG PER CUSTOMER*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date));
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━');
-      p.rows.forEach(r => { const ag = agingLabel(r.oldest); lines.push(r.customer + ': ' + fmtRp(r.total) + ' (' + r.count + 'x, ' + ag.label + ')'); });
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━', '*TOTAL: ' + fmtRp(p.total) + '*');
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      let lines = _waHead('💳', 'REKAP PIUTANG PER CUSTOMER', ['📅 ' + fmtDate(p.date)]);
+      p.rows.forEach((r, i) => { const ag = agingLabel(r.oldest); if (i) lines.push(''); lines.push('📍 *' + r.customer + '*', '   ' + fmtRp(r.total) + ' · ' + r.count + ' transaksi', '   ⏳ ' + ag.label); });
+      lines.push('', _WAL, '💰 *TOTAL PIUTANG: ' + fmtRp(p.total) + '*', '_' + p.rows.length + ' customer_');
+      _waOpen(lines);
     }
 
     // ---- Cetak Detail Transaksi Belum Bayar (Print / PNG / WhatsApp) ----
@@ -3904,7 +3902,7 @@
     }
     function showPiutangDetailStrukModal(payload) {
       const html = buildPiutangDetailStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Detail Transaksi Belum Bayar</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPiutangDetailPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPiutangDetailPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doPiutangDetailWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Detail Transaksi Belum Bayar</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPiutangDetailPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPiutangDetailPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doPiutangDetailWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doPiutangDetailPrint() {
@@ -3938,12 +3936,10 @@
     function doPiutangDetailWA() {
       if (!_lastPiutangDetailPayload) return;
       const p = _lastPiutangDetailPayload;
-      let lines = ['📋 *DETAIL TRANSAKSI BELUM BAYAR*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date) + ' · ' + p.sales);
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━');
-      p.rows.forEach(r => lines.push(r.customer + ' (' + fmtDate(r.tgl) + '): ' + fmtRp(r.nett) + ' - ' + r.aging));
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━', '*TOTAL: ' + fmtRp(p.total) + '*');
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      let lines = _waHead('💳', 'DETAIL TRANSAKSI BELUM BAYAR', ['📅 ' + fmtDate(p.date) + ' · 👤 ' + p.sales]);
+      p.rows.forEach((r, i) => { if (i) lines.push(''); lines.push('📍 *' + r.customer + '*', '   📅 ' + fmtDate(r.tgl) + ' · ' + fmtRp(r.nett), '   ⏳ ' + r.aging); });
+      lines.push('', _WAL, '💰 *TOTAL: ' + fmtRp(p.total) + '*');
+      _waOpen(lines);
     }
 
     function filterPiutangTable() {
@@ -4295,7 +4291,7 @@
       window._dxShare = _cicStrukPayload(entry, t, sisaBaru, lunas);
       window._cicLast = { entry, t, sisaBaru, lunas };
       const html = buildDxShareHTML(window._dxShare);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>${lunas ? '✅ Lunas' : '💸 Cicilan Tercatat'}</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="dxShareDo('print')"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="dxShareDo('png')"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="dxShareDo('wa')"><div>💬</div><div>WhatsApp</div></div><div class="action-card" onclick="cicilWaPelanggan()"><div>📤</div><div>Kirim ke Pelanggan</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px"><div style="zoom:${Math.min(1, (window.innerWidth - 76) / 390).toFixed(3)}">${html}</div></div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>${lunas ? '✅ Lunas' : '💸 Cicilan Tercatat'}</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="dxShareDo('print')"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="dxShareDo('png')"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="dxShareDo('wa')"><div>💬</div><div>WhatsApp</div></div><div class="action-card" onclick="cicilWaPelanggan()"><div>📤</div><div>Kirim ke Pelanggan</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px"><div style="zoom:${Math.min(1, (window.innerWidth - 76) / 390).toFixed(3)}">${html}</div></div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function cicilWaPelanggan() {
@@ -4943,7 +4939,7 @@
           ['Salah input?', 'Sales tidak bisa mengedit/menghapus transaksi yang setorannya sudah disimpan. Minta admin untuk mengoreksi.'] ] },
         { t:'Setoran', ic:'fa-money-bill-wave', items:[
           ['Mengisi setoran', 'Menu Setoran → pilih tanggal → isi pengeluaran (makan, bensin, dll.) dan uang yang disetor. Aplikasi menghitung selisih. Selisih besar akan diberitahukan ke pemilik.'],
-          ['Cetak / kirim', 'Setelah tersimpan, struk setoran bisa dicetak, diunduh PNG, atau dikirim lewat WhatsApp.'] ] },
+          ['Cetak / kirim', 'Setelah tersimpan, struk setoran bisa dicetak, diunduh PDF, atau dikirim lewat WhatsApp.'] ] },
         { t:'Masalah umum', ic:'fa-circle-info', items:[
           ['Tertulis “menunggu sinkron”', 'Perangkat sedang offline; data tersimpan di HP dan terkirim otomatis begitu internet kembali. Jangan hapus data aplikasi sebelum sinkron selesai.'],
           ['Lupa kata sandi', 'Hubungi admin untuk mengganti kata sandi di menu Pengguna.'] ] }
@@ -6070,7 +6066,7 @@
 
     // [NEW] Cetak Rekap - dibuat mengikuti pola struk yang SUDAH ADA di menu Jual/Titipan/
     // Setoran/Cek Stock/Cek Kosongan (bukan langsung print, tapi modal preview dulu dengan
-    // pilihan Print / Download PNG / WhatsApp, pakai #strukModal yang sama). Satu shell ini
+    // pilihan Print / Download PDF / WhatsApp, pakai #strukModal yang sama). Satu shell ini
     // dipakai untuk SEMUA pilihan "Jenis Laporan" (Penjualan per Sales, per SKU, per Customer,
     // per Qty, COD, Transfer, QRIS, Belum Transfer, dll) - kontennya diambil dari tabel yang
     // sedang tampil di #rekapContent, dibungkus header gradient + footer bergaya sama seperti
@@ -6124,7 +6120,7 @@
       const filterLabel = fmtDate(tgl) + ' · ' + salesLabel;
       _lastRekapPayload = { jenisLabel, filterLabel, tgl, salesLabel, tableHtml: content.innerHTML };
       const html = buildRekapStrukShell(jenisLabel, filterLabel, _lastRekapPayload.tableHtml);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 ${esc(jenisLabel)}</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doRekapPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doRekapPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doRekapWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 ${esc(jenisLabel)}</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doRekapPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doRekapPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doRekapWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doRekapPrint() {
@@ -6167,14 +6163,17 @@
       // baris) supaya tidak perlu bikin format teks terpisah untuk tiap 10 jenis laporan.
       const tmp = document.createElement('div');
       tmp.innerHTML = _lastRekapPayload.tableHtml;
-      const lines = ['📊 *' + _lastRekapPayload.jenisLabel.toUpperCase() + '*', '*' + (settings.namaToko||'Tirta Kencana') + '*', _lastRekapPayload.filterLabel, '━━━━━━━━━━━━━━━━━━━━━━'];
+      const lines = _waHead('📊', _lastRekapPayload.jenisLabel.toUpperCase(), _lastRekapPayload.filterLabel ? ['🔎 ' + _lastRekapPayload.filterLabel] : []);
       tmp.querySelectorAll('table').forEach(table => {
         table.querySelectorAll('tr').forEach(tr => {
           const cells = Array.from(tr.children).map(td => td.textContent.trim()).filter(Boolean);
-          if (cells.length) lines.push(cells.join(' | '));
+          if (!cells.length) return;
+          if (tr.querySelector('th')) lines.push('_' + cells.join(' · ') + '_', '');
+          else if (cells.length === 1) lines.push('*' + cells[0] + '*');
+          else lines.push('▪️ *' + cells[0] + '* — ' + cells.slice(1).join(' · '));
         });
       });
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      _waOpen(lines);
     }
 
     // ========== REKAP INPUT (dengan tabel detail bisa edit qty & status) ==========
@@ -6248,12 +6247,19 @@
       if (!s) return Swal.fire('Error','Data input barang tidak ditemukan','error');
       _lastInputBarangStruk = s;
       const html = buildStrukInputBarangHTML(s);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Input Barang</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doInputBarangPrint()"><div style="font-size:28px">🖨️</div><div style="font-size:13px;font-weight:700">Print</div></div><div class="action-card" onclick="doInputBarangPng()"><div style="font-size:28px">📥</div><div style="font-size:13px;font-weight:700">Download PNG</div></div><div class="action-card" onclick="doInputBarangWA()"><div style="font-size:28px">💬</div><div style="font-size:13px;font-weight:700">WhatsApp</div></div><div class="action-card" onclick="document.getElementById('fotoInputBarangStruk').click()"><div style="font-size:28px">📸</div><div style="font-size:13px;font-weight:700">Upload Foto</div></div><div class="action-card" onclick="showFotoBukti('${esc(s.id).replace(/'/g,"\\'")}','Input Barang ${esc(s.id).replace(/'/g,"\\'")}')"><div style="font-size:28px">🖼</div><div style="font-size:13px;font-weight:700">Lihat Foto</div></div></div><input type="file" id="fotoInputBarangStruk" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoBukti('${esc(s.id).replace(/'/g,"\\'")}','inputbarang',this)"><div style="border:1px solid var(--border);border-radius:14px;overflow:auto;max-height:480px;background:#e8f2f9;padding:14px"><div style="width:360px;margin:0 auto">${html}</div></div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Input Barang</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doInputBarangPrint()"><div style="font-size:28px">🖨️</div><div style="font-size:13px;font-weight:700">Print</div></div><div class="action-card" onclick="doInputBarangPng()"><div style="font-size:28px">📥</div><div style="font-size:13px;font-weight:700">Download PDF</div></div><div class="action-card" onclick="doInputBarangWA()"><div style="font-size:28px">💬</div><div style="font-size:13px;font-weight:700">WhatsApp</div></div><div class="action-card" onclick="document.getElementById('fotoInputBarangStruk').click()"><div style="font-size:28px">📸</div><div style="font-size:13px;font-weight:700">Upload Foto</div></div><div class="action-card" onclick="showFotoBukti('${esc(s.id).replace(/'/g,"\\'")}','Input Barang ${esc(s.id).replace(/'/g,"\\'")}')"><div style="font-size:28px">🖼</div><div style="font-size:13px;font-weight:700">Lihat Foto</div></div></div><input type="file" id="fotoInputBarangStruk" accept="image/*" capture="environment" style="display:none" onchange="uploadFotoBukti('${esc(s.id).replace(/'/g,"\\'")}','inputbarang',this)"><div style="border:1px solid var(--border);border-radius:14px;overflow:auto;max-height:480px;background:#e8f2f9;padding:14px"><div style="width:360px;margin:0 auto">${html}</div></div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doInputBarangPrint() { if (!_lastInputBarangStruk) return; const win = window.open('','_blank','width=420,height=700'); win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><title>Struk Input Barang</title></head><body style="margin:16px;background:#e8f2f9;display:flex;justify-content:center">'); win.document.write(buildStrukInputBarangHTML(_lastInputBarangStruk)); win.document.write('<script>window.onload=function(){window.print();}<\/script></body></html>'); win.document.close(); }
     function doInputBarangPng() { if (!_lastInputBarangStruk) return; const off = document.getElementById('strukOffscreen'); off.style.cssText = 'position:fixed;left:-9999px;top:0;pointer-events:none;z-index:-1;background:#e8f2f9;padding:20px'; off.innerHTML = buildStrukInputBarangHTML(_lastInputBarangStruk); const el = off.querySelector('#inputbarang-root'); if (!el) return Swal.fire('Error','Gagal render','error'); setTimeout(() => { html2canvas(el, {backgroundColor:'#e8f2f9',scale:2.5,useCORS:true,allowTaint:true,logging:false}).then(canvas => { const a = document.createElement('a'); a.download = 'InputBarang-'+(_lastInputBarangStruk.id||'item')+'.png'; a.href = canvas.toDataURL('image/png'); document.body.appendChild(a); a.click(); document.body.removeChild(a); off.innerHTML = ''; Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Struk tersimpan' }); }).catch(err => { off.innerHTML=''; Swal.fire('Error',err.message,'error'); }); }, 400); }
-    function doInputBarangWA() { if (!_lastInputBarangStruk) return; const s = _lastInputBarangStruk; const disc = s.disc || 0; const netModal = (s.hargaModal - disc) * s.qty; let lines = ['📦 *INPUT BARANG*','*'+(settings.namaToko||'Tirta Kencana')+'*','━━━━━━━━━━━━━━━━━━━━━━']; lines.push('ID: *'+s.id+'*'); lines.push('Tgl: '+fmtDate(s.date||s.tgl||'')); lines.push('SKU: '+s.sku+' - '+(s.nama||'')); lines.push('Qty: '+s.qty); lines.push('Harga Modal: Rp '+Number(s.hargaModal||0).toLocaleString('id-ID')); if (disc) lines.push('Disc: -Rp '+Number(disc).toLocaleString('id-ID')); lines.push('Driver: '+(s.driver||'-')+' (Rit '+(s.rit||'-')+')'); lines.push('Status: *'+(s.status||'-').toUpperCase()+'*'); lines.push('━━━━━━━━━━━━━━━━━━━━━━'); lines.push('*NET MODAL : Rp '+Number(netModal).toLocaleString('id-ID')+'*'); window.open('https://wa.me/?text='+encodeURIComponent(lines.join('\n')),'_blank'); }
+    function doInputBarangWA() {
+      if (!_lastInputBarangStruk) return; const s = _lastInputBarangStruk, disc = s.disc || 0, netModal = (s.hargaModal - disc) * s.qty, rp = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
+      const lines = _waHead('📦', 'INPUT BARANG', ['📅 ' + fmtDate(s.date||s.tgl||'')]);
+      lines.push('🔖 ID: *' + s.id + '*', '📦 ' + s.sku + ' - ' + (s.nama||''), '🔢 Qty: *' + s.qty + '*', '💵 Harga modal: ' + rp(s.hargaModal));
+      if (disc) lines.push('🏷️ Disc: -' + rp(disc));
+      lines.push('🚚 Driver: ' + (s.driver||'-') + ' (Rit ' + (s.rit||'-') + ')', '📌 Status: *' + (s.status||'-').toUpperCase() + '*', _WAL, '💰 *NET MODAL: ' + rp(netModal) + '*');
+      _waOpen(lines);
+    }
 
     // ========== INPUT BARANG ==========
     function loadInputBarang() { 
@@ -6839,7 +6845,7 @@
     }
     function showCekStockStrukModal(payload) {
       const html = buildCekStockStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Cek Stock</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doCekStockPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doCekStockPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doCekStockWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Cek Stock</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doCekStockPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doCekStockPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doCekStockWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doCekStockPrint() {
@@ -6873,16 +6879,14 @@
     function doCekStockWA() {
       if (!_lastCekStockPayload) return;
       const p = _lastCekStockPayload;
-      let lines = ['🧾 *LAPORAN CEK STOCK*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date));
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━');
-      p.rows.forEach(r => {
-        const status = r.hasVal ? (r.selisih === 0 ? '✅' : '⚠️') : '⏳';
-        lines.push(status + ' ' + r.nama + ': Stock ' + r.stock + ', Cek ' + (r.hasVal ? r.cekStock : '-') + ', Selisih ' + (r.hasVal ? (r.selisih>0?'+':'')+r.selisih : '-'));
+      let lines = _waHead('🧾', 'LAPORAN CEK STOCK', ['📅 ' + fmtDate(p.date)]);
+      p.rows.forEach((r, i) => {
+        const st = r.hasVal ? (r.selisih === 0 ? '✅' : '⚠️') : '⏳';
+        if (i) lines.push('');
+        lines.push(st + ' *' + r.nama + '*', '   Stock ' + r.stock + ' · Cek ' + (r.hasVal ? r.cekStock : '-') + ' · Selisih ' + (r.hasVal ? (r.selisih>0?'+':'')+r.selisih : '-'));
       });
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━');
-      lines.push('✅ Cocok: ' + p.cocokCount + ' | ⚠️ Cek Lagi: ' + p.cekLagiCount + ' | Belum: ' + p.belumCount);
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      lines.push('', _WAL, '✅ Cocok: *' + p.cocokCount + '*', '⚠️ Cek lagi: *' + p.cekLagiCount + '*', '⏳ Belum dicek: *' + p.belumCount + '*');
+      _waOpen(lines);
     }
 
     // ========== CEK KOSONGAN (GALON KOSONG: TOKO/MOBIL/TITIPAN/PINJAMAN) ==========
@@ -7095,7 +7099,7 @@
     }
     function showCekKosonganStrukModal(payload) {
       const html = buildCekKosonganStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Cek Kosongan</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doCekKosonganPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doCekKosonganPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doCekKosonganWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Struk Cek Kosongan</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doCekKosonganPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doCekKosonganPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doCekKosonganWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doCekKosonganPrint() {
@@ -7129,15 +7133,12 @@
     function doCekKosonganWA() {
       if (!_lastCekKosonganPayload) return;
       const p = _lastCekKosonganPayload;
-      let lines = ['🧾 *LAPORAN CEK KOSONGAN*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date));
-      lines.push('🏬 Toko: ' + p.toko + ' | 🚚 Mobil: ' + p.mobil);
-      lines.push('Total Stok: ' + p.totalStok);
-      if (p.titipan.length) { lines.push('━━━━━━━━━━━━━━━━━━━━━━', '📤 Titipan:'); p.titipan.forEach(r => lines.push('• ' + (r.nama||'-') + ': ' + (r.qty||0))); }
-      lines.push('Total - Titipan: ' + p.stokMinusTitipan);
-      if (p.pinjaman.length) { lines.push('━━━━━━━━━━━━━━━━━━━━━━', '📥 Pinjaman:'); p.pinjaman.forEach(r => lines.push('• ' + (r.nama||'-') + ': ' + (r.qty||0))); }
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━', '*TOTAL GALON: ' + p.totalGalon + '*');
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      let lines = _waHead('🧾', 'LAPORAN CEK KOSONGAN', ['📅 ' + fmtDate(p.date)]);
+      lines.push('🏬 Toko: *' + p.toko + '*', '🚚 Mobil: *' + p.mobil + '*', '📦 Total stok: *' + p.totalStok + '*');
+      if (p.titipan.length) { lines.push('', '📤 *Titipan*'); p.titipan.forEach(r => lines.push('   • ' + (r.nama||'-') + ' : ' + (r.qty||0))); lines.push('   ➖ Stok setelah titipan: *' + p.stokMinusTitipan + '*'); }
+      if (p.pinjaman.length) { lines.push('', '📥 *Pinjaman*'); p.pinjaman.forEach(r => lines.push('   • ' + (r.nama||'-') + ' : ' + (r.qty||0))); }
+      lines.push('', _WAL, '💧 *TOTAL GALON: ' + p.totalGalon + '*');
+      _waOpen(lines);
     }
 
     // ========== PESANAN (Input Pesanan Pelanggan -> Rekap per Sales -> Rencana Order) ==========
@@ -7276,6 +7277,18 @@
           ${rekapSalesHtml}
         </div>
 
+        <div class="card" id="pesRiwayatCard">
+          <div class="card-title"><i class="fas fa-clock-rotate-left"></i> Riwayat Pesanan</div>
+          <div class="text-sm" style="color:var(--text3);margin-bottom:8px">Pilih tanggal untuk melihat pesanan hari itu, lalu cetak atau kirim ke WhatsApp.</div>
+          <div class="pesrw-bar">
+            <button class="btn btn-outline btn-sm" onclick="pesRiwayatGeser(-1)" aria-label="Hari sebelumnya"><i class="fas fa-chevron-left"></i></button>
+            <input type="date" id="pesRwTgl" value="${localDateStr(new Date(Date.now() - 86400000))}" max="${today}" onchange="pesRiwayatLoad()">
+            <button class="btn btn-outline btn-sm" onclick="pesRiwayatGeser(1)" aria-label="Hari berikutnya"><i class="fas fa-chevron-right"></i></button>
+            <button class="btn btn-primary btn-sm" onclick="pesRiwayatLoad()"><i class="fas fa-magnifying-glass"></i> Tampilkan</button>
+          </div>
+          <div id="pesRiwayatBody"></div>
+        </div>
+
         <div class="card" id="pesananOrderCard">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <div class="card-title" style="margin:0"><i class="fas fa-truck-loading"></i> Rencana Order</div>
@@ -7288,6 +7301,7 @@
         </div>`;
       pesResetItemsCart();
       renderPesananOrderTable();
+      try { pesRiwayatLoad(); } catch(e) {}
     }
 
     // [NEW] Cart barang untuk Input Pesanan - mirip addItemRow() di menu Jual, versi
@@ -7613,6 +7627,55 @@
     }
     // ---- Cetak Rekap Pesanan per Sales (Print / PNG / WhatsApp) ----
     let _lastPesananSalesPayload = null;
+
+    // ===== RIWAYAT PESANAN (lihat pesanan tanggal lain, bisa dicetak / WA) =====
+    function pesRiwayatGeser(n) {
+      const el = document.getElementById('pesRwTgl'); if (!el) return;
+      const d = new Date((el.value || localDateStr()) + 'T00:00:00'); d.setDate(d.getDate() + n);
+      const v = localDateStr(d); if (v > localDateStr()) return; el.value = v; pesRiwayatLoad();
+    }
+    async function pesRiwayatLoad() {
+      const body = document.getElementById('pesRiwayatBody'), tgl = document.getElementById('pesRwTgl')?.value;
+      if (!body) return; if (!tgl) { body.innerHTML = ''; return; }
+      body.innerHTML = '<p class="text-center text-sm" style="padding:16px"><i class="fas fa-spinner fa-spin"></i> Memuat pesanan ' + esc(fmtDate(tgl)) + '…</p>';
+      let entries = [], ov = {};
+      if (tgl === localDateStr() && window._pesananData) { entries = window._pesananData.entries || []; ov = window._pesananData.orderValues || {}; }
+      else {
+        try { const r = await gasCall('getPesananByDate', [tgl], 0); if (r && Array.isArray(r.entries)) { entries = r.entries; ov = r.orderValues || {}; } } catch(e) {}
+        if (!entries.length && !Object.keys(ov).length) { const l = _loadPesanan(tgl); entries = l.entries || []; ov = l.orderValues || {}; }
+      }
+      if (document.getElementById('pesRwTgl')?.value !== tgl) return;   // user sudah ganti tanggal
+      const bySales = {};
+      entries.forEach(e => { const sl = e.sales || '-', c = e.customer || '-'; ((bySales[sl] = bySales[sl] || {})[c] = bySales[sl][c] || []).push(e); });
+      window._pesRw = { date: tgl, bySales, count: entries.length, orderRows: [] };
+      if (!entries.length && !Object.keys(ov).filter(k => Number(ov[k]) > 0).length) { body.innerHTML = '<div class="text-sm" style="color:var(--text3);padding:20px;text-align:center">Tidak ada pesanan pada ' + esc(fmtDate(tgl)) + '</div>'; return; }
+      let tq = 0, tc = 0;
+      const cards = Object.keys(bySales).sort().map(sn => {
+        const cu = bySales[sn], cn = Object.keys(cu); tc += cn.length;
+        return `<div style="min-width:220px;flex:1;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+          <div style="background:var(--biru);color:#fff;padding:8px 12px;font-weight:800;font-size:0.82rem;text-align:center">${esc(sn).toUpperCase()}</div>
+          <div style="padding:8px 10px">${cn.map(c => `<div style="margin-bottom:8px"><div style="font-weight:700;font-size:0.75rem;color:var(--biru);margin-bottom:2px">${esc(c)}</div>${cu[c].map(it => { tq += Number(it.qty) || 0; return `<div class="flex-between" style="font-size:0.72rem;padding-left:8px"><span>${esc(it.nama||it.sku)}</span><span style="font-family:var(--mono);font-weight:700">${it.qty}</span></div>`; }).join('')}</div>`).join('')}</div></div>`;
+      }).join('');
+      body.innerHTML = `<div class="pesrw-sum"><b>${esc(fmtDate(tgl))}</b><span>${entries.length} item · ${tc} customer · ${tq} qty</span></div>
+        <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px">${cards}</div>
+        <div class="pesrw-act"><button class="btn btn-primary" onclick="pesRiwayatCetak()"><i class="fas fa-receipt"></i> Cetak Rekap</button><button class="btn btn-outline" onclick="pesRiwayatWA()"><i class="fab fa-whatsapp"></i> WhatsApp</button></div>
+        <div class="pesrw-ord"><div class="pesrw-ordt"><i class="fas fa-truck-loading"></i> Rencana Order · ${esc(fmtDate(tgl))}</div><div id="pesRwOrder"><p class="text-center text-sm" style="padding:12px"><i class="fas fa-spinner fa-spin"></i> Memuat stock…</p></div></div>`;
+      // ---- Rencana Order tanggal itu: STOCK (hari itu) | PESANAN | ORDER (yang tersimpan) ----
+      const pq = {}; entries.forEach(e => { pq[e.sku] = (pq[e.sku] || 0) + (Number(e.qty) || 0); });
+      const skus = [...new Set([...Object.keys(pq), ...Object.keys(ov).filter(k => Number(ov[k]) > 0)])];
+      let stock = []; try { stock = await getCorrectedStockBarangForDate(tgl); } catch(e) {}
+      if (document.getElementById('pesRwTgl')?.value !== tgl) return;
+      const orows = skus.map(sku => { const sr = (stock || []).find(x => x.sku === sku), pr = products.find(x => x.sku === sku); return { sku, nama: (sr && sr.nama) || (pr && pr.nama) || sku, stock: sr ? sr.stokAkhir : '-', pesanan: pq[sku] || 0, order: Number(ov[sku]) > 0 ? Number(ov[sku]) : 0 }; }).sort((a, b) => a.nama.localeCompare(b.nama));
+      window._pesRw.orderRows = orows.filter(r => r.order > 0).map(r => ({ nama: r.nama, order: r.order }));
+      const ow = document.getElementById('pesRwOrder'); if (!ow) return;
+      ow.innerHTML = !orows.length ? '<div class="text-sm" style="color:var(--text3);padding:12px;text-align:center">Tidak ada data rencana order.</div>' :
+        `<div class="table-wrap"><table><thead><tr><th>KODE</th><th>NAMA BARANG</th><th style="text-align:center">STOCK</th><th style="text-align:center">PESANAN</th><th style="text-align:center">ORDER</th></tr></thead><tbody>${orows.map(r => `<tr><td style="font-family:var(--mono);font-size:11px">${esc(r.sku)}</td><td>${esc(r.nama)}</td><td style="text-align:center;font-weight:700;font-family:var(--mono)">${r.stock}</td><td style="text-align:center;font-weight:700;font-family:var(--mono);color:var(--biru)">${r.pesanan || '-'}</td><td style="text-align:center;font-weight:800;font-family:var(--mono)">${r.order || '-'}</td></tr>`).join('')}</tbody></table></div>
+        <div class="pesrw-act"><button class="btn btn-primary" onclick="pesRiwayatCetakOrder()"><i class="fas fa-receipt"></i> Cetak Order</button><button class="btn btn-outline" onclick="pesRiwayatWAOrder()"><i class="fab fa-whatsapp"></i> WhatsApp</button></div>`;
+    }
+    function pesRiwayatCetakOrder() { const r = window._pesRw; if (!r) return; if (!r.orderRows.length) return Swal.fire({ icon:'info', title:'Tidak ada order', text:'Tanggal ini belum ada barang yang diisi kolom ORDER.' }); _lastPesananPayload = { date: r.date, rows: r.orderRows }; showPesananStrukModal(_lastPesananPayload); }
+    function pesRiwayatWAOrder() { const r = window._pesRw; if (!r) return; if (!r.orderRows.length) return Swal.fire({ icon:'info', title:'Tidak ada order', text:'Tanggal ini belum ada barang yang diisi kolom ORDER.' }); _lastPesananPayload = { date: r.date, rows: r.orderRows }; doPesananWA(); }
+    function pesRiwayatCetak() { const r = window._pesRw; if (!r || !r.count) return; _lastPesananSalesPayload = { date: r.date, bySales: r.bySales }; showPesananSalesStrukModal(_lastPesananSalesPayload); }
+    function pesRiwayatWA() { const r = window._pesRw; if (!r || !r.count) return; _lastPesananSalesPayload = { date: r.date, bySales: r.bySales }; doPesananSalesWA(); }
     function cetakPesananPerSales() {
       const d = window._pesananData;
       if (!d.entries.length) return Swal.fire({ icon:'info', title:'Belum Ada Pesanan', text:'Input pesanan dulu sebelum mencetak rekap.' });
@@ -7653,7 +7716,7 @@
     }
     function showPesananSalesStrukModal(payload) {
       const html = buildPesananSalesStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Rekap Pesanan per Sales</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPesananSalesPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPesananSalesPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doPesananSalesWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Rekap Pesanan per Sales</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPesananSalesPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPesananSalesPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doPesananSalesWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doPesananSalesPrint() {
@@ -7684,20 +7747,51 @@
         }, 400);
       });
     }
+    // ===== FORMAT PESAN WHATSAPP (seragam) =====
+    // Garis pemisah selebar gelembung chat (22 karakter) supaya mentok sampai ujung kanan.
+    const _WAL = '━━━━━━━━━━━━━━━━━━━━━━';
+    function _waHead(icon, title, extra) { return [icon + ' *' + title + '*', '🏪 ' + (settings.namaToko || 'Tirta Kencana')].concat(extra || [], [_WAL]); }
+    // Lebar tiap baris diperkirakan (satuan em), lalu garis pemisah dipanjangkan sampai setara baris terlebar
+    // (min 22, maks 30 karakter) sehingga garis selalu mentok ke ujung kanan gelembung chat.
+    function _waEstW(t) {
+      let w = 0;
+      for (const ch of String(t).replace(/[*_]/g, '')) {
+        const c = ch.codePointAt(0);
+        if (c > 0x2000 && ch !== '━' && ch !== '—' && ch !== '·' && ch !== '•') w += 1.15;
+        else if (ch === ' ') w += 0.28;
+        else if (/[A-Z0-9]/.test(ch)) w += 0.62;
+        else if (/[a-z]/.test(ch)) w += 0.52;
+        else if (/[.,:;'|!]/.test(ch)) w += 0.28;
+        else w += 0.55;
+      }
+      return w;
+    }
+    function _waOpen(lines) {
+      let mx = 0; lines.forEach(l => { if (l !== _WAL) mx = Math.max(mx, _waEstW(l)); });
+      const n = Math.max(22, Math.min(30, Math.ceil(mx / 0.5))), div = '━'.repeat(n);
+      window.open('https://wa.me/?text=' + encodeURIComponent(lines.map(l => l === _WAL ? div : l).join('\n')), '_blank');
+    }
     function doPesananSalesWA() {
       if (!_lastPesananSalesPayload) return;
       const p = _lastPesananSalesPayload;
-      let lines = ['📋 *REKAP PESANAN PER SALES*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date));
-      Object.keys(p.bySales).sort().forEach(sname => {
-        lines.push('━━━━━━━━━━━━━━━━━━━━━━', '*' + sname.toUpperCase() + '*');
-        const customers = p.bySales[sname];
-        Object.keys(customers).forEach(cname => {
-          lines.push('_' + cname + '_');
-          customers[cname].forEach(it => lines.push('  ' + (it.nama||it.sku) + ': ' + it.qty));
+      const _line = _WAL;
+      let lines = _waHead('📋', 'REKAP PESANAN PER SALES', ['📅 ' + fmtDate(p.date)]);
+      let grandQty = 0, grandCust = 0;
+      Object.keys(p.bySales).sort().forEach((sname, si) => {
+        const customers = p.bySales[sname], cnames = Object.keys(customers);
+        let sQty = 0;
+        if (si > 0) lines.push('');
+        lines.push('👤 *' + sname.toUpperCase() + '*', '');
+        cnames.forEach((cname, ci) => {
+          lines.push('📍 *' + cname + '*');
+          customers[cname].forEach(it => { lines.push('   • ' + (it.nama||it.sku) + ' : *' + it.qty + '*'); sQty += Number(it.qty) || 0; });
+          if (ci < cnames.length - 1) lines.push('');
         });
+        grandQty += sQty; grandCust += cnames.length;
+        lines.push('', '▫️ _' + cnames.length + ' customer · total ' + sQty + ' qty_', _line);
       });
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      lines.push('', '✅ *TOTAL: ' + grandCust + ' customer · ' + grandQty + ' qty*');
+      _waOpen(lines);
     }
 
     function openPesananSkuModal() {
@@ -7750,7 +7844,7 @@
     }
     function showPesananStrukModal(payload) {
       const html = buildPesananStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Laporan Order</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPesananPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPesananPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doPesananWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Laporan Order</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPesananPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPesananPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doPesananWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doPesananPrint() {
@@ -7784,12 +7878,10 @@
     function doPesananWA() {
       if (!_lastPesananPayload) return;
       const p = _lastPesananPayload;
-      let lines = ['📦 *LAPORAN BARANG AKAN DI-ORDER*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date));
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━');
-      p.rows.forEach(r => lines.push(r.nama + ': ' + r.order));
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━', '----MAKASIH----');
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      let lines = _waHead('📦', 'BARANG AKAN DI-ORDER', ['📅 ' + fmtDate(p.date)]);
+      p.rows.forEach(r => lines.push('▪️ ' + r.nama + ' : *' + r.order + '*'));
+      lines.push(_WAL, '🙏 Terima kasih');
+      _waOpen(lines);
     }
 
     // ========== TITIPAN (barang dititip ke pihak lain: log Masuk/Keluar per SKU) ==========
@@ -8054,7 +8146,7 @@
     }
     function showTitipanStrukModal(payload) {
       const html = buildTitipanStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Sisa Titipan</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doTitipanPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doTitipanPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doTitipanWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Sisa Titipan</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doTitipanPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doTitipanPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doTitipanWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doTitipanPrint() {
@@ -8088,15 +8180,13 @@
     function doTitipanWA() {
       if (!_lastTitipanPayload) return;
       const p = _lastTitipanPayload;
-      let lines = ['📦 *LAPORAN TITIPAN*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date));
-      lines.push('Pelanggan: *' + p.customer + '*');
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━', '📋 Riwayat Hari Ini:');
-      if (p.todayEntries.length === 0) lines.push('(tidak ada pergerakan)');
-      else p.todayEntries.forEach(e => lines.push((e.tipe==='masuk'?'+':'-') + e.qty + ' ' + e.nama));
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━', '📦 Sisa Titipan ' + p.customer + ':');
-      p.sisaRows.forEach(r => lines.push(r.nama + ': ' + r.sisa));
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      let lines = _waHead('📦', 'LAPORAN TITIPAN', ['📅 ' + fmtDate(p.date), '👤 Pelanggan: *' + p.customer + '*']);
+      lines.push('📋 *Riwayat hari ini*');
+      if (p.todayEntries.length === 0) lines.push('   (tidak ada pergerakan)');
+      else p.todayEntries.forEach(e => lines.push('   ' + (e.tipe==='masuk'?'➕':'➖') + ' ' + e.qty + ' ' + e.nama));
+      lines.push('', '📦 *Sisa titipan ' + p.customer + '*');
+      p.sisaRows.forEach(r => lines.push('   • ' + r.nama + ' : *' + r.sisa + '*'));
+      _waOpen(lines);
     }
 
     // ---- Cetak Rekap Titipan per Pelanggan (Print / PNG / WhatsApp) ----
@@ -8141,7 +8231,7 @@
     }
     function showTitipanPelangganStrukModal(payload) {
       const html = buildTitipanPelangganStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Rekap Titipan per Pelanggan</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doTitipanPelangganPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doTitipanPelangganPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doTitipanPelangganWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Rekap Titipan per Pelanggan</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doTitipanPelangganPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doTitipanPelangganPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doTitipanPelangganWA()"><div>💬</div><div>WhatsApp</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doTitipanPelangganPrint() {
@@ -8175,14 +8265,14 @@
     function doTitipanPelangganWA() {
       if (!_lastTitipanPelangganPayload) return;
       const p = _lastTitipanPelangganPayload;
-      let lines = ['📦 *REKAP TITIPAN PER PELANGGAN*', '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Tanggal: ' + fmtDate(p.date));
-      Object.keys(p.byCustomer).sort().forEach(cname => {
-        lines.push('━━━━━━━━━━━━━━━━━━━━━━', '*' + cname + '*');
+      let lines = _waHead('📦', 'REKAP TITIPAN PER PELANGGAN', ['📅 ' + fmtDate(p.date)]);
+      Object.keys(p.byCustomer).sort().forEach((cname, ci) => {
+        if (ci) lines.push('');
+        lines.push('📍 *' + cname + '*');
         const skus = p.byCustomer[cname];
-        Object.keys(skus).forEach(sku => { const s = skus[sku]; lines.push(s.nama + ': ' + (s.masuk - s.keluar)); });
+        Object.keys(skus).forEach(sku => { const x = skus[sku]; lines.push('   • ' + x.nama + ' : *' + (x.masuk - x.keluar) + '*'); });
       });
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      _waOpen(lines);
     }
 
     // ========== EDIT MANUAL STOCK BARANG (Stok Awal/Masuk/Keluar/Stok Akhir) ==========
@@ -8895,7 +8985,7 @@
     }
     function showPelangganStrukModal(payload) {
       const html = buildPelangganStrukHTML(payload);
-      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Riwayat ${esc(payload.name)}</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPelangganStrukPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPelangganStrukPng()"><div>📥</div><div>Download PNG</div></div><div class="action-card" onclick="doPelangganStrukWA()"><div>💬</div><div>WhatsApp</div></div><div class="action-card" onclick="doPelangganStrukWaPelanggan()"><div>📤</div><div>Kirim ke Pelanggan</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
+      document.getElementById('strukContent').innerHTML = `<div class="modal-header"><h2>🧾 Riwayat ${esc(payload.name)}</h2><button class="modal-close" onclick="closeStruk()">✕</button></div><div class="action-grid"><div class="action-card" onclick="doPelangganStrukPrint()"><div>🖨️</div><div>Print</div></div><div class="action-card" onclick="doPelangganStrukPng()"><div>📥</div><div>Download PDF</div></div><div class="action-card" onclick="doPelangganStrukWA()"><div>💬</div><div>WhatsApp</div></div><div class="action-card" onclick="doPelangganStrukWaPelanggan()"><div>📤</div><div>Kirim ke Pelanggan</div></div></div><div style="text-align:center;max-height:70vh;overflow:auto;background:#e8f2f9;border-radius:14px;padding:10px">${html}</div>`;
       document.getElementById('strukModal').classList.add('show');
     }
     function doPelangganStrukPrint() {
@@ -8930,14 +9020,11 @@
       if (!_lastPelangganStrukPayload) return;
       const p = _lastPelangganStrukPayload;
       const periodeLabel = (p.stats.startDate || p.stats.endDate) ? `${p.stats.startDate?fmtDate(p.stats.startDate):'Awal'} - ${p.stats.endDate?fmtDate(p.stats.endDate):'Sekarang'}` : 'Semua Periode';
-      let lines = [`📋 *RIWAYAT PELANGGAN - ${p.name.toUpperCase()}*`, '*'+(settings.namaToko||'Tirta Kencana')+'*', '━━━━━━━━━━━━━━━━━━━━━━'];
-      lines.push('Periode: ' + periodeLabel);
-      lines.push('Total Belanja: ' + fmtRp(p.stats.totalBelanja));
-      lines.push('Piutang: ' + fmtRp(p.stats.totalPiutang));
-      lines.push('Jumlah Transaksi: ' + p.stats.jumlahTrx);
-      lines.push('━━━━━━━━━━━━━━━━━━━━━━');
-      p.rows.slice(0,30).forEach(t => lines.push(fmtDate(t.tgl) + ': ' + fmtRp(t.nett||0)));
-      window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+      let lines = _waHead('📋', 'RIWAYAT PELANGGAN', ['👤 *' + p.name.toUpperCase() + '*', '📅 ' + periodeLabel]);
+      lines.push('🛒 Total belanja: *' + fmtRp(p.stats.totalBelanja) + '*', '💳 Piutang: *' + fmtRp(p.stats.totalPiutang) + '*', '🧾 Jumlah transaksi: *' + p.stats.jumlahTrx + '*', _WAL);
+      p.rows.slice(0,30).forEach(t => lines.push('▪️ ' + fmtDate(t.tgl) + ' : ' + fmtRp(t.nett||0)));
+      if (p.rows.length > 30) lines.push('_…dan ' + (p.rows.length - 30) + ' transaksi lainnya_');
+      _waOpen(lines);
     }
     // [NEW] Sama persis isinya, dikirim LANGSUNG ke nomor WA pelanggan tsb.
     function doPelangganStrukWaPelanggan() {
@@ -9645,7 +9732,7 @@ if ('serviceWorker' in navigator) {
   // (EMBEDDED_LOGO tetap seperti semula). Blok ini hanya MENIMPA nilai
   // runtime dari variabel _logoUrl (yang memang sudah "let", boleh
   // diubah) dari URL remote image2url.com (yang tidak CORS-friendly,
-  // menyebabkan logo hilang saat Download PNG) menjadi data URI
+  // menyebabkan logo hilang saat Download PDF) menjadi data URI
   // (base64 WebP transparan) yang tertanam langsung di kode ini.
   //
   // Berlaku HANYA jika user belum upload logo custom sendiri lewat
