@@ -1141,6 +1141,7 @@
         syncCustomerAddressesFromGAS(); // [NEW] tarik alamat pelanggan terbaru dari Sheets juga
         cicilanSync(); // [NEW] cicilan piutang
         returSync(); // [v16] retur barang
+        try { diskonPelSync(); } catch(e) {} // [v21] diskon pelanggan
         if (Array.isArray(prod)) products = prod;
         if (Array.isArray(cust)) { allCustomers = cust; pelanggan = cust.slice(); }
         if (Array.isArray(trx)) {
@@ -1439,6 +1440,7 @@
              <button class="tab ${currentPage==='rekapharian'?'active':''}" onclick="navigateTo('rekapharian')"><i class="fas fa-calendar-check"></i> Rekap Harian</button>
              <button class="tab ${currentPage==='auditlog'?'active':''}" onclick="navigateTo('auditlog')"><i class="fas fa-shield-halved"></i> Backup &amp; Audit</button>
              <button class="tab ${currentPage==='googledrive'?'active':''}" onclick="navigateTo('googledrive')"><i class="fas fa-hard-drive"></i> Google Drive</button>
+             <button class="tab ${currentPage==='diskonpel'?'active':''}" onclick="navigateTo('diskonpel')"><i class="fas fa-tags"></i> Diskon Pelanggan</button>
              <button class="tab ${currentPage==='panduan'?'active':''}" onclick="navigateTo('panduan')"><i class="fas fa-circle-question"></i> Panduan</button>
              <button class="tab ${currentPage==='pengaturan'?'active':''}" onclick="navigateTo('pengaturan')"><i class="fas fa-cog"></i> Atur</button>`;
       } else if (r === 'sales') {
@@ -1503,6 +1505,7 @@
           { page:'rekapharian', label:'Rekap Harian', icon:'fa-calendar-check' },
           { page:'auditlog', label:'Backup & Audit', icon:'fa-shield-halved' },
           { page:'googledrive', label:'Google Drive', icon:'fa-hard-drive' },
+          { page:'diskonpel', label:'Diskon Pelanggan', icon:'fa-tags' },
           { page:'googlesheets', label:'Google Sheets', icon:'fa-table-cells' },
           { page:'panduan', label:'Panduan', icon:'fa-circle-question' },
           { page:'pengaturan', label:'Atur', icon:'fa-cog' },
@@ -1602,7 +1605,7 @@
     function _pgHero(icon, title, sub, val, lbl) {
       return `<div class="pg-hero"><div class="pg-hero-eyebrow"><i class="fas ${icon}"></i> ${title}</div><div class="pg-hero-sub">${sub||''}</div>${val !== undefined && val !== null ? `<div class="pg-hero-val">${val}</div><div class="pg-hero-lbl">${lbl||''}</div>` : ''}</div>`;
     }
-    function renderContent() { try { document.getElementById('contentArea').setAttribute('data-page', currentPage); } catch(e) {} switch (currentPage) { case 'dashboard': loadDashboard(); break; case 'penjualan': loadPenjualan(); break; case 'transaksi': loadTransaksi(); break; case 'rekap': loadRekap(); break; case 'rekapinput': loadRekapInput(); break; case 'setoran': loadSetoran(); break; case 'rekapsetoran': loadRekapSetoran(); break; case 'inputbarang': loadInputBarang(); break; case 'stockbarang': loadStockBarang(); break; case 'cekstock': loadCekStock(); break; case 'cekkosongan': loadCekKosongan(); break; case 'pesanan': loadPesanan(); break; case 'titipan': loadTitipan(); break; case 'produk': loadProduk(); break; case 'pelanggan': loadPelanggan(); break; case 'pengaturan': loadPengaturan(); break; case 'pengaturanUser': loadPengaturanUser(); break; case 'grafik': loadGrafik(); break; case 'piutang': loadPiutang(); break; case 'retur': loadRetur(); break; case 'googledrive': loadGoogleDrive(); break; case 'laporanbulanan': loadLaporanBulanan(); break; case 'profit': loadProfit(); break; case 'analisacust': loadAnalisaCust(); break; case 'rekapharian': loadRekapHarian(); break; case 'auditlog': loadAuditLog(); break; case 'googlesheets': loadGoogleSheets(); break; case 'panduan': loadPanduan(); break; } }
+    function renderContent() { try { document.getElementById('contentArea').setAttribute('data-page', currentPage); } catch(e) {} switch (currentPage) { case 'dashboard': loadDashboard(); break; case 'penjualan': loadPenjualan(); break; case 'transaksi': loadTransaksi(); break; case 'rekap': loadRekap(); break; case 'rekapinput': loadRekapInput(); break; case 'setoran': loadSetoran(); break; case 'rekapsetoran': loadRekapSetoran(); break; case 'inputbarang': loadInputBarang(); break; case 'stockbarang': loadStockBarang(); break; case 'cekstock': loadCekStock(); break; case 'cekkosongan': loadCekKosongan(); break; case 'pesanan': loadPesanan(); break; case 'titipan': loadTitipan(); break; case 'produk': loadProduk(); break; case 'pelanggan': loadPelanggan(); break; case 'pengaturan': loadPengaturan(); break; case 'pengaturanUser': loadPengaturanUser(); break; case 'grafik': loadGrafik(); break; case 'piutang': loadPiutang(); break; case 'retur': loadRetur(); break; case 'googledrive': loadGoogleDrive(); break; case 'diskonpel': loadDiskonPel(); break; case 'laporanbulanan': loadLaporanBulanan(); break; case 'profit': loadProfit(); break; case 'analisacust': loadAnalisaCust(); break; case 'rekapharian': loadRekapHarian(); break; case 'auditlog': loadAuditLog(); break; case 'googlesheets': loadGoogleSheets(); break; case 'panduan': loadPanduan(); break; } }
 
     // ========== DASHBOARD (MENU UTAMA) ==========
     function loadDashboard() {
@@ -2479,7 +2482,7 @@
               ${[['Cod','COD','fa-hand-holding-dollar'],['Transfer','Transfer','fa-building-columns'],['Qris','QRIS','fa-qrcode']].map(m => `<div class="spl-row"><span class="spl-nm"><i class="fas ${m[2]}"></i> ${m[1]}</span><input type="number" inputmode="numeric" min="0" id="spl${m[0]}" placeholder="0" oninput="splitCalc()"><button type="button" class="spl-fill" onclick="splitFill('spl${m[0]}')">Sisa</button></div>`).join('')}
               <div id="splitSum" class="spl-sum"></div>
             </div></div>
-          <div class="form-group"><label>Pelanggan *</label><div class="jx-inrow"><input id="trxCust" placeholder="Nama pelanggan" list="custDatalist" autocomplete="off"><button type="button" class="jx-mic" onclick="startFieldVoiceInput('customer', this)" title="Isi dengan suara" style="${MIC_BTN_STYLE}"><i class="fas fa-microphone"></i></button></div><datalist id="custDatalist">${cDatalist}</datalist><div id="trxCredNote"></div></div>
+          <div class="form-group"><label>Pelanggan *</label><div class="jx-inrow"><input id="trxCust" placeholder="Nama pelanggan" list="custDatalist" autocomplete="off"><button type="button" class="jx-mic" onclick="startFieldVoiceInput('customer', this)" title="Isi dengan suara" style="${MIC_BTN_STYLE}"><i class="fas fa-microphone"></i></button></div><datalist id="custDatalist">${cDatalist}</datalist><div id="trxCredNote"></div><div id="trxDiscNote"></div></div>
           <div class="jx-grid2">
             <div class="form-group"><label>Sales *</label><div class="jx-inrow"><select id="trxSales">${sOpts}</select><button type="button" class="jx-mic" onclick="startFieldVoiceInput('sales', this)" title="Isi dengan suara" style="${MIC_BTN_STYLE}"><i class="fas fa-microphone"></i></button></div></div>
             <div class="form-group"><label>Diskon Global (Rp)</label><input type="number" id="trxDiscGlobal" placeholder="0" min="0" oninput="recalcTotals()"></div>
@@ -2517,7 +2520,8 @@
         </div>`;
       ensureJualTwoColStyles();
       cfgSyncFromServer();
-      { const _ci = document.getElementById('trxCust'); if (_ci) { ['input','change'].forEach(ev => _ci.addEventListener(ev, () => { clearTimeout(_custHintTimer); _custHintTimer = setTimeout(updateCustomerHints, 250); })); } }
+      { const _ci = document.getElementById('trxCust'); if (_ci) { ['input','change'].forEach(ev => _ci.addEventListener(ev, () => { clearTimeout(_custHintTimer); _custHintTimer = setTimeout(() => { updateCustomerHints(); try { dpApplyAll(); } catch(e) {} }, 250); })); } }
+      { const _ic = document.getElementById('itemsContainer'); if (_ic) _ic.addEventListener('input', e => { const t = e.target; if (e.isTrusted && t && t.matches && t.matches('[data-field="disc"]')) { t.dataset.manual = '1'; t.dataset.auto = ''; } }); }
       _itemIdx = 0;
       document.getElementById('trxTgl').value = localDateStr();
       document.getElementById('trxCust').value = ''; document.getElementById('trxDiscGlobal').value = ''; document.getElementById('trxStatus').value = '';
@@ -2719,19 +2723,21 @@
       const hargaInput = div.querySelector('[data-field="harga"]');
       skuInput.addEventListener('input', () => {
         const val = skuInput.value.trim();
-        if (!val) { namaInput.value = ''; recalcTotals(); return; }
+        if (!val) { namaInput.value = ''; try { _dpApplyRow(div); } catch(e) {} recalcTotals(); return; }
         const p = products.find(x => String(x.sku).toLowerCase() === val.toLowerCase() || (x.barcode && String(x.barcode) === val));
         if (p) { skuInput.value = p.sku; namaInput.value = p.nama; hargaInput.value = p.jual || p.harga || 0; }
         else { namaInput.value = ''; }
+        try { _dpApplyRow(div); } catch(e) {}
         recalcTotals();
       });
       ['qty','harga','disc'].forEach(f => div.querySelector(`[data-field="${f}"]`).addEventListener('input', recalcTotals));
       document.getElementById('itemsContainer').appendChild(div);
       if (skuVal) { const p = products.find(x => String(x.sku).toLowerCase() === skuVal.toLowerCase()); if (p) { skuInput.value = p.sku; namaInput.value = p.nama; hargaInput.value = p.jual || p.harga || 0; } }
+      try { _dpApplyRow(div); } catch(e) {}
       recalcTotals();
     }
 
-    function fillRowBySku(row, sku) { const p = products.find(x => String(x.sku).toLowerCase() === sku.toLowerCase()); if (!p) return; row.querySelector('[data-field="sku"]').value = p.sku; row.querySelector('[data-field="harga"]').value = p.jual || p.harga || 0; const namaInput = row.querySelector('[data-field="nama"]'); if (namaInput) namaInput.value = p.nama; recalcTotals(); }
+    function fillRowBySku(row, sku) { const p = products.find(x => String(x.sku).toLowerCase() === sku.toLowerCase()); if (!p) return; row.querySelector('[data-field="sku"]').value = p.sku; row.querySelector('[data-field="harga"]').value = p.jual || p.harga || 0; const namaInput = row.querySelector('[data-field="nama"]'); if (namaInput) namaInput.value = p.nama; try { _dpApplyRow(row); } catch(e) {} recalcTotals(); }
     function getItems() { const rows = document.querySelectorAll('#itemsContainer .cart-item-row'); const items = []; rows.forEach(row => { const sku = row.querySelector('[data-field="sku"]')?.value.trim() || ''; const qty = parseInt(row.querySelector('[data-field="qty"]')?.value) || 1; const harga = parseFloat(row.querySelector('[data-field="harga"]')?.value) || 0; const disc = parseFloat(row.querySelector('[data-field="disc"]')?.value) || 0; const p = products.find(x => x.sku === sku); const modal = p ? (p.modal || 0) : 0; const nettPer = harga - disc; if (sku || p) items.push({ sku, nama: p?.nama || sku, qty, harga, discRpPer: disc, modal, nettPer, subtotal: nettPer * qty }); }); return items; }
     function setBiayaTambahan(ket, jml) { const elKet = document.getElementById('biayaKet'); const elJml = document.getElementById('biayaJml'); if (elKet) elKet.value = ket; if (elJml) elJml.value = jml; recalcTotals(); }
     function _jxUpdateSubs() { document.querySelectorAll('#itemsContainer .cart-item-row').forEach(r => { const q = parseInt(r.querySelector('[data-field="qty"]')?.value) || 0, h = parseFloat(r.querySelector('[data-field="harga"]')?.value) || 0, d = parseFloat(r.querySelector('[data-field="disc"]')?.value) || 0; const el = r.querySelector('.jx-sub'); if (el) el.textContent = fmtRp(Math.max(0,(h - d) * q)); }); }
@@ -4197,6 +4203,139 @@
         ['drvJenis','drvFmt','drvDari','drvSampai'].forEach((id, i) => { const el = document.getElementById(id); if (el) el.value = [keep.jenis, keep.fmt, keep.dari, keep.sampai][i]; }); drvJenisChange();
       } catch(e) { Swal.fire('Ekspor gagal', String(e.message || e), 'error'); if (b) { b.disabled = false; b.innerHTML = '<i class="fas fa-file-export"></i> Ekspor ke Drive'; } }
     }
+    // ===== DISKON PELANGGAN =====
+    const DP_KEY = 'tirtaDiskonPel';
+    let diskonPel = []; try { diskonPel = JSON.parse(localStorage.getItem(DP_KEY) || '[]') || []; } catch(e) {}
+    function _dpSave() { try { localStorage.setItem(DP_KEY, JSON.stringify(diskonPel)); } catch(e) {} }
+    const _dpN = x => String(x || '').trim().toLowerCase();
+    function _dpRules(cust) { const c = _dpN(cust); return c ? diskonPel.filter(r => _dpN(r.customer) === c) : []; }
+    // diskon per unit untuk pelanggan+SKU: aturan SKU lebih diutamakan daripada "semua barang"; null = tidak ada di database
+    function _dpFor(cust, sku) {
+      const rs = _dpRules(cust); if (!rs.length) return null;
+      const s = _dpN(sku), ex = rs.find(r => r.sku !== '*' && _dpN(r.sku) === s); if (ex) return Number(ex.disc) || 0;
+      const all = rs.find(r => r.sku === '*'); return all ? (Number(all.disc) || 0) : null;
+    }
+    async function diskonPelSync() {
+      try {
+        const r = await gasCall('getDiskonPelanggan', [], 0);
+        if (!Array.isArray(r)) return;
+        if ((typeof _syncQueue !== 'undefined') && _syncQueue.some(q => /DiskonPelanggan$/.test(q.fn))) return;   // masih ada perubahan lokal belum terkirim
+        diskonPel = r; _dpSave();
+        if (currentPage === 'diskonpel') _dpRender(); else if (currentPage === 'penjualan') { try { dpApplyAll(); } catch(e) {} }
+      } catch(e) {}
+    }
+    // --- menu Jual: isi otomatis ---
+    function _dpApplyRow(row) {
+      const cust = document.getElementById('trxCust')?.value || '', d = row.querySelector('[data-field="disc"]'); if (!d || d.dataset.manual === '1') return;
+      const sk = (row.querySelector('[data-field="sku"]')?.value || '').trim();
+      const v = sk ? _dpFor(cust, sk) : null;
+      if (v !== null) { d.value = v || ''; d.dataset.auto = '1'; }
+      else if (d.dataset.auto === '1') { d.value = ''; d.dataset.auto = ''; }
+    }
+    function dpApplyAll() {
+      document.querySelectorAll('#itemsContainer .cart-item-row').forEach(_dpApplyRow);
+      try { recalcTotals(); } catch(e) {}
+    }
+    // --- menu Diskon Pelanggan ---
+    function loadDiskonPel() {
+      const el = document.getElementById('contentArea');
+      if (currentUser?.role !== 'admin') { el.innerHTML = '<div class="card"><div class="text-sm" style="padding:16px;text-align:center">Menu Diskon Pelanggan khusus admin.</div></div>'; return; }
+      el.innerHTML = `${_pgHero('fa-tags','Diskon Pelanggan','Diskon tetap per pelanggan, terisi otomatis di menu Jual','<span id="dpCount">0</span>','pelanggan')}
+        <div class="card">
+          <div class="card-title"><i class="fas fa-plus-circle"></i> Tambah / Ubah Diskon</div>
+          <div class="dp-form"><label>Nama pelanggan<input id="dpCust" list="dpCustList" placeholder="Ketik atau pilih pelanggan" autocomplete="off" oninput="dpCustChange()" onchange="dpCustChange()"><datalist id="dpCustList">${(allCustomers || []).map(c => `<option value="${esc(c)}">`).join('')}</datalist></label></div>
+          <datalist id="dpSkuList"><option value="*">Semua barang</option>${(products || []).map(p => `<option value="${esc(p.sku)}">${esc(p.nama || '')}</option>`).join('')}</datalist>
+          <div id="dpItems"></div>
+          <button type="button" class="btn btn-ghost btn-block" style="margin:8px 0" onclick="dpAddRow()"><i class="fas fa-plus"></i> Tambah Item</button>
+          <button class="btn btn-primary btn-block" onclick="dpSimpan()"><i class="fas fa-floppy-disk"></i> Simpan Semua Diskon</button>
+          <div class="text-sm" style="color:var(--text3);margin-top:8px;line-height:1.5">Isi nama pelanggan, tambahkan semua item + diskonnya, lalu simpan sekali. Kolom barang diisi kode SKU, atau <b>*</b> untuk semua barang. Kalau pelanggan sudah punya diskon, otomatis tampil di sini dan bisa diubah/dihapus. SKU tertentu diutamakan daripada <b>*</b>.</div>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-list"></i> Daftar Diskon Pelanggan</div>
+          <input id="dpSearch" placeholder="Cari nama pelanggan…" oninput="_dpRender()" style="margin-bottom:10px">
+          <div id="dpList"></div>
+        </div>`;
+      window._dpLoadedFor = ''; dpAddRow(); _dpRender();
+    }
+    function _dpRender() {
+      const box = document.getElementById('dpList'); if (!box) return;
+      const q = _dpN(document.getElementById('dpSearch')?.value), by = {};
+      diskonPel.forEach(r => { if (!q || _dpN(r.customer).includes(q)) (by[r.customer] = by[r.customer] || []).push(r); });
+      const names = Object.keys(by).sort((a, b) => a.localeCompare(b));
+      const cnt = document.getElementById('dpCount'); if (cnt) cnt.textContent = new Set(diskonPel.map(r => _dpN(r.customer))).size;
+      if (!names.length) { box.innerHTML = '<div class="text-sm" style="color:var(--text3);padding:14px;text-align:center">' + (q ? 'Tidak ada pelanggan yang cocok.' : 'Belum ada diskon tersimpan. Tambahkan lewat form di atas.') + '</div>'; return; }
+      const pname = sku => { const p = (products || []).find(x => _dpN(x.sku) === _dpN(sku)); return p ? (p.nama || p.sku) : sku; };
+      box.innerHTML = names.map(n => `<div class="dp-cust"><div class="dp-ch"><b>${esc(n)}</b><button class="btn btn-sm btn-ghost" style="color:#DC2626" onclick="dpHapusSemua(${JSON.stringify(n).replace(/"/g, '&quot;')})"><i class="fas fa-trash"></i> Hapus semua</button></div>
+        ${by[n].sort((a, b) => (a.sku === '*' ? -1 : 0) - (b.sku === '*' ? -1 : 0)).map(r => `<div class="dp-rule"><span class="dp-sku">${r.sku === '*' ? 'Semua barang' : esc(pname(r.sku))}</span>
+          <input type="number" min="0" inputmode="numeric" value="${Number(r.disc) || 0}" data-c="${esc(n)}" data-s="${esc(r.sku)}" aria-label="Diskon per unit">
+          <button class="btn btn-sm btn-primary" onclick="dpUbah(this)" title="Simpan perubahan"><i class="fas fa-check"></i></button>
+          <button class="btn btn-sm btn-ghost" style="color:#DC2626" onclick="dpHapusSatu(this)" title="Hapus"><i class="fas fa-xmark"></i></button></div>`).join('')}</div>`).join('');
+    }
+    function _dpUpsertLocal(customer, sku, disc) {
+      const i = diskonPel.findIndex(r => _dpN(r.customer) === _dpN(customer) && _dpN(r.sku) === _dpN(sku));
+      if (disc <= 0) { if (i >= 0) diskonPel.splice(i, 1); }
+      else if (i >= 0) diskonPel[i].disc = disc; else diskonPel.push({ customer, sku, disc });
+      _dpSave();
+    }
+    function dpAddRow(sku, disc) {
+      const box = document.getElementById('dpItems'); if (!box) return;
+      const d = document.createElement('div'); d.className = 'dp-rule dp-edit';
+      d.innerHTML = `<input class="dp-sk" list="dpSkuList" placeholder="SKU / * semua barang" autocomplete="off" value="${esc(sku || '')}"><input class="dp-ds" type="number" min="0" inputmode="numeric" placeholder="Disc Rp" value="${disc || ''}"><button type="button" class="btn btn-sm btn-ghost" style="color:#DC2626" title="Hapus baris" onclick="this.parentElement.remove()"><i class="fas fa-xmark"></i></button>`;
+      box.appendChild(d);
+    }
+    function _dpRows() {
+      return [...document.querySelectorAll('#dpItems .dp-edit')].map(r => {
+        let sku = r.querySelector('.dp-sk').value.trim(); const raw = r.querySelector('.dp-ds').value;
+        if (/^(\*|semua|semua barang)$/i.test(sku)) sku = '*';
+        const p = (products || []).find(x => _dpN(x.sku) === _dpN(sku)); if (p) sku = p.sku;
+        return { sku, disc: raw === '' ? NaN : Math.round(parseFloat(raw)), raw };
+      }).filter(x => x.sku || x.raw !== '');
+    }
+    // pilih pelanggan: tampilkan diskon yang sudah tersimpan sebagai baris yang bisa diedit
+    function dpCustChange() {
+      const c = (document.getElementById('dpCust')?.value || '').trim(), box = document.getElementById('dpItems'); if (!box) return;
+      const rs = _dpRules(c); if (c === window._dpLoadedFor) return; window._dpLoadedFor = c;
+      box.innerHTML = ''; if (rs.length) rs.forEach(r => dpAddRow(r.sku, r.disc)); else dpAddRow();
+    }
+    function dpSimpan() {
+      const customer = (document.getElementById('dpCust')?.value || '').trim(), rows = _dpRows();
+      if (!customer) return Swal.fire('Nama kosong', 'Isi nama pelanggan dulu.', 'warning');
+      if (!rows.length) return Swal.fire('Belum ada item', 'Tambahkan minimal satu item dan diskonnya.', 'warning');
+      for (const r of rows) {
+        if (!r.sku) return Swal.fire('SKU kosong', 'Ada baris yang kode SKU-nya belum diisi (atau isi * untuk semua barang).', 'warning');
+        if (!isFinite(r.disc) || r.disc < 0) return Swal.fire('Diskon belum diisi', 'Ada baris yang diskonnya belum diisi (angka 0 atau lebih).', 'warning');
+        if (r.sku !== '*' && !(products || []).some(x => _dpN(x.sku) === _dpN(r.sku))) return Swal.fire('SKU tidak dikenal', `SKU “${esc(r.sku)}” tidak ada di daftar barang.`, 'warning');
+      }
+      const seen = {}; for (const r of rows) { const k = _dpN(r.sku); if (seen[k]) return Swal.fire('SKU dobel', `SKU “${esc(r.sku)}” muncul dua kali.`, 'warning'); seen[k] = 1; }
+      const known = (allCustomers || []).some(c => _dpN(c) === _dpN(customer));
+      const go = () => {
+        const keep = new Set(rows.map(r => _dpN(r.sku)));
+        _dpRules(customer).filter(r => !keep.has(_dpN(r.sku))).forEach(r => { _dpUpsertLocal(customer, r.sku, 0); enqueueSync('deleteDiskonPelanggan', [{ customer, sku: r.sku }], 'Hapus diskon ' + customer); });
+        rows.forEach(r => { _dpUpsertLocal(customer, r.sku, r.disc); enqueueSync('saveDiskonPelanggan', [{ customer, sku: r.sku, disc: r.disc }], 'Diskon ' + customer); });
+        document.getElementById('dpCust').value = ''; window._dpLoadedFor = ''; document.getElementById('dpItems').innerHTML = ''; dpAddRow(); _dpRender();
+        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: `Diskon ${customer} disimpan (${rows.length} item)` });
+      };
+      if (!known) Swal.fire({ icon: 'question', title: 'Pelanggan belum terdaftar', html: `“${esc(customer)}” tidak ada di daftar pelanggan. Tetap simpan? Pastikan penulisan namanya sama dengan di menu Jual.`, showCancelButton: true, confirmButtonText: 'Tetap simpan', cancelButtonText: 'Batal' }).then(r => { if (r.isConfirmed) go(); });
+      else go();
+    }
+    function dpUbah(btn) {
+      const inp = btn.parentElement.querySelector('input'), c = inp.dataset.c, s = inp.dataset.s, v = Math.round(parseFloat(inp.value));
+      if (!isFinite(v) || v < 0) return Swal.fire('Angka tidak valid', 'Diskon harus 0 atau lebih.', 'warning');
+      _dpUpsertLocal(c, s, v); enqueueSync('saveDiskonPelanggan', [{ customer: c, sku: s, disc: v }], 'Diskon ' + c); _dpRender();
+      Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: v > 0 ? 'Diskon diperbarui' : 'Aturan dihapus' });
+    }
+    async function dpHapusSatu(btn) {
+      const inp = btn.parentElement.querySelector('input'), c = inp.dataset.c, s = inp.dataset.s;
+      const r = await Swal.fire({ icon: 'warning', title: 'Hapus diskon ini?', text: c + ' · ' + (s === '*' ? 'Semua barang' : s), showCancelButton: true, confirmButtonText: 'Hapus', cancelButtonText: 'Batal', confirmButtonColor: '#DC2626' });
+      if (!r.isConfirmed) return;
+      _dpUpsertLocal(c, s, 0); enqueueSync('deleteDiskonPelanggan', [{ customer: c, sku: s }], 'Hapus diskon ' + c); _dpRender();
+    }
+    async function dpHapusSemua(c) {
+      const r = await Swal.fire({ icon: 'warning', title: 'Hapus semua diskon pelanggan ini?', text: c, showCancelButton: true, confirmButtonText: 'Hapus semua', cancelButtonText: 'Batal', confirmButtonColor: '#DC2626' });
+      if (!r.isConfirmed) return;
+      diskonPel = diskonPel.filter(x => _dpN(x.customer) !== _dpN(c)); _dpSave();
+      enqueueSync('deleteDiskonPelanggan', [{ customer: c }], 'Hapus diskon ' + c); _dpRender();
+    }
     function loadRetur() {
       const g = _retGroups(), isAdmin = currentUser?.role === 'admin';
       const bulan = localDateStr().substring(0,7), gBulan = g.filter(x => String(x.tgl).startsWith(bulan));
@@ -4924,6 +5063,7 @@
           ['Laporan bulanan', 'Menu Profit → pilih rentang (mis. “Bulan lalu”) → Ekspor Excel atau PDF.'],
           ['Analisa Customer', 'Customer terbaik dan yang mulai jarang beli; tombol 💬 Ajak mengirim WA ajakan.'] ] },
         { t:'Keamanan & pemeliharaan', ic:'fa-shield-halved', items:[
+          ['Diskon Pelanggan', 'Khusus admin. Isi nama pelanggan + diskon per unit (untuk semua barang atau SKU tertentu). Di menu Jual, begitu nama pelanggan dipilih diskon terisi otomatis; pelanggan yang belum ada di daftar diisi manual. Diskon yang muncul tetap bisa diubah.'],
           ['Google Drive', 'Khusus admin. Status koneksi & folder Drive, simpan Laporan Harian (PDF) ke Drive, kelola backup (termasuk pulihkan), dan ekspor data ke Excel/CSV.'],
           ['Backup & Audit', 'Backup otomatis tiap malam ke Drive. Halaman Backup & Audit juga berisi Log Login, Audit Log, Uji Sistem, dan pengaturan Notifikasi Pemilik.'],
           ['Uji Sistem', 'Jalankan setelah memasang pembaruan backend atau bila ada yang terasa janggal; hasilnya menunjukkan bagian mana yang perlu diperbaiki.'],
@@ -9557,8 +9697,62 @@
 
     // PWA
     let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; document.getElementById('installBtn').style.display = 'block'; });
-    function installApp() { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(r => { if (r.outcome === 'accepted') console.log('Installed'); deferredPrompt = null; document.getElementById('installBtn').style.display = 'none'; }); } else { Swal.fire('Info','Klik menu browser > Add to Home Screen','info'); } }
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; document.getElementById('installBtn').style.display = 'inline-flex'; });
+    function _isStandalone() { try { return window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || window.navigator.standalone === true; } catch(e) { return false; } }
+    function installApp() {
+      if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(r => { deferredPrompt = null; if (r.outcome === 'accepted') { const b = document.getElementById('installBtn'); if (b) b.style.display = 'none'; } }); return; }
+      pwaDiagnosa();
+    }
+    // Panduan + diagnosa: kenapa menu "Install" tidak muncul di browser perangkat ini.
+    async function pwaDiagnosa() {
+      const ua = navigator.userAgent || '', ok = (v, t, h) => `<div style="display:flex;gap:8px;margin:5px 0;text-align:left;font-size:.82rem"><span>${v === true ? '✅' : (v === false ? '❌' : '⚠️')}</span><span><b>${t}</b>${h ? '<br><span style="color:var(--text3);font-size:.74rem">' + h + '</span>' : ''}</span></div>`;
+      const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Telegram|MiuiBrowser.*XiaoMi.*Mb|; wv\)/i.test(ua);
+      const isFF = /Firefox|FxiOS/i.test(ua), isSam = /SamsungBrowser/i.test(ua), isEdge = /Edg/i.test(ua), isChrome = /Chrome|CriOS/i.test(ua) && !isEdge && !isSam && !/OPR|Opera/i.test(ua);
+      const secure = window.isSecureContext;
+      let mf = null, mfErr = '', icons = { i192: false, i512: false }, sw = null;
+      try { const link = document.querySelector('link[rel="manifest"]'); const r = await fetch(link ? link.href : 'manifest.json', { cache: 'no-store' }); if (r.ok) mf = await r.json(); else mfErr = 'HTTP ' + r.status; } catch(e) { mfErr = String(e.message || e); }
+      if (mf && Array.isArray(mf.icons)) {
+        icons.i192 = mf.icons.some(x => /192x192/.test(x.sizes || '') || /512x512/.test(x.sizes || ''));
+        icons.i512 = mf.icons.some(x => /512x512/.test(x.sizes || ''));
+        try { const base = document.querySelector('link[rel="manifest"]')?.href || location.href; const first = mf.icons.find(x => /512x512/.test(x.sizes || '')) || mf.icons[0]; const rr = await fetch(new URL(first.src, base).href, { cache: 'no-store' }); icons.load = rr.ok; } catch(e) { icons.load = false; }
+      }
+      try { sw = await navigator.serviceWorker.getRegistration(); } catch(e) {}
+      const dispOk = mf && ['standalone', 'fullscreen', 'minimal-ui'].includes(mf.display);
+      // pemeriksaan lanjutan yang sering membuat Chrome menyembunyikan menu Install
+      let scopeOk = null, swFetch = null, anyIcon = null;
+      try { const base = document.querySelector('link[rel="manifest"]')?.href || location.href; if (mf) { const st = new URL(mf.start_url || '.', base).href, sc = new URL(mf.scope || '.', base).href; scopeOk = st.indexOf(sc) === 0; } } catch(e) {}
+      try { if (mf && Array.isArray(mf.icons)) anyIcon = [192, 512].every(n => mf.icons.some(x => (x.sizes || '').split(' ').includes(n + 'x' + n) && (!x.purpose || /\bany\b/.test(x.purpose)) && /png/i.test(x.type || x.src || 'png'))); } catch(e) {}
+      try { const rs = await fetch('sw.js', { cache: 'no-store' }); const tx = rs.ok ? await rs.text() : ''; swFetch = /addEventListener\(\s*['"]fetch['"]/.test(tx); } catch(e) {}
+      const rows = [
+        ok(secure, 'Alamat aman (HTTPS)', secure ? '' : 'Aplikasi harus dibuka lewat alamat https:// supaya bisa di-install.'),
+        ok(!!mf, 'File manifest terbaca', mf ? '' : 'manifest.json tidak bisa dibuka (' + esc(mfErr) + '). Pastikan file ada di folder yang sama dengan index.html.'),
+        ok(!!(mf && (mf.name || mf.short_name)), 'Nama aplikasi di manifest'),
+        ok(!!(mf && mf.start_url), 'start_url di manifest'),
+        ok(!!dispOk, 'display: standalone', mf ? 'Sekarang: ' + esc(String(mf.display)) : ''),
+        ok(!!(icons.i192 && icons.i512), 'Ikon 192×192 dan 512×512', 'Wajib ada keduanya (PNG) di manifest.'),
+        ok(icons.load === undefined ? null : !!icons.load, 'File ikon bisa dibuka', icons.load === false ? 'Alamat ikon di manifest salah atau file tidak ada di server.' : ''),
+        ok(!!(sw && (sw.active || sw.waiting)), 'Service Worker aktif', sw ? '' : 'Belum terpasang. Buka ulang halaman 1-2 kali.'),
+        ok(swFetch, 'Service Worker punya fetch handler', swFetch === false ? 'sw.js harus punya addEventListener("fetch", …).' : ''),
+        ok(scopeOk, 'start_url berada di dalam scope', scopeOk === false ? 'start_url di luar scope manifest.' : ''),
+        ok(anyIcon, 'Ikon PNG 192 & 512 berpurpose "any"', anyIcon === false ? 'Ikon "maskable" saja tidak cukup; tambahkan ikon biasa (purpose any) 192 dan 512.' : ''),
+        ok(!(mf && mf.prefer_related_applications === true), 'prefer_related_applications tidak aktif', mf && mf.prefer_related_applications === true ? 'Nilai true membuat Chrome tidak menawarkan install. Hapus atau ubah ke false.' : ''),
+        ok(mf && mf.id ? true : null, 'Properti id di manifest', mf && mf.id ? '' : 'Disarankan menambah "id": "./" agar identitas aplikasi stabil.'),
+        ok(!_isStandalone(), 'Belum terpasang sebagai aplikasi', _isStandalone() ? 'Aplikasi ini sudah berjalan sebagai aplikasi terpasang.' : ''),
+        ok(!inApp, 'Dibuka di browser biasa', inApp ? 'Sepertinya dibuka dari dalam aplikasi lain (WhatsApp/Facebook/dll). Salin link lalu buka di Chrome.' : '')
+      ].join('');
+      let cara;
+      if (isIOS) cara = '<b>iPad / iPhone (Safari):</b> ketuk ikon <b>Bagikan</b> (kotak dengan panah ke atas) → <b>Tambah ke Layar Utama</b>. Di iPad/iPhone memang tidak ada pop-up "Install" otomatis, dan hanya Safari yang bisa.';
+      else if (isFF) cara = '<b>Firefox:</b> Firefox di Android/tablet tidak mendukung install PWA penuh. Buka dengan <b>Chrome</b> atau <b>Samsung Internet</b>.';
+      else if (isSam) cara = '<b>Samsung Internet:</b> menu ☰ → <b>Tambahkan halaman ke</b> → <b>Layar utama</b> (atau ikon + di bilah alamat).';
+      else if (isChrome || isEdge) cara = '<b>Chrome/Edge:</b> menu ⋮ → <b>Save and share</b> (Simpan dan bagikan) → <b>Install page as app / Install app</b> atau <b>Add to Home screen</b>. Di Chrome versi baru pilihan ini ada di dalam submenu <b>Save and share</b>, bukan di daftar utama. Kalau pilihan itu tidak ada: (1) matikan <b>Mode Samaran/Incognito</b>, (2) matikan <b>Situs Desktop</b> di menu ⋮, (3) hapus cache situs lalu buka lagi 2 kali, (4) pastikan belum pernah terpasang sebelumnya — kalau sudah, cari ikon "Tirta Kencana" di layar utama/laci aplikasi.';
+      else cara = 'Buka menu browser lalu cari <b>Instal aplikasi</b> / <b>Tambahkan ke layar utama</b>. Disarankan memakai Chrome.';
+      const raw = mf ? '<details style="text-align:left;margin-top:8px"><summary style="font-size:.76rem;cursor:pointer">Lihat isi manifest</summary><pre style="font-size:.68rem;white-space:pre-wrap;word-break:break-all;max-height:30vh;overflow:auto">' + esc(JSON.stringify(mf, null, 1)) + '</pre></details>' : '';
+      Swal.fire({ title: 'Install Aplikasi', html: `<div style="max-height:60vh;overflow:auto">${rows}<hr style="border:0;border-top:1px dashed var(--border);margin:10px 0"><div style="text-align:left;font-size:.8rem;line-height:1.5">${cara}</div>${raw}</div>`, confirmButtonText: 'Mengerti', width: 460 });
+    }
+    // tombol 📲 selalu tampil (kecuali sudah terpasang) supaya ada panduan walau browser tidak mengirim pop-up install
+    window.addEventListener('load', () => { try { const b = document.getElementById('installBtn'); if (b && !_isStandalone()) b.style.display = 'inline-flex'; } catch(e) {} });
+    window.addEventListener('appinstalled', () => { try { const b = document.getElementById('installBtn'); if (b) b.style.display = 'none'; } catch(e) {} });
     // Service Worker diaktifkan kembali agar memenuhi syarat installability PWA (Add to Home Screen)
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
