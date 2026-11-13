@@ -1,145 +1,34 @@
-name: Build APK (Android)
-
-# Cara pakai: tab Actions → "Build APK (Android)" → Run workflow.
-# Hasil: file APK di halaman Releases (tag apk-<nomor>) dan di bagian Artifacts.
+name: Build APK
 
 on:
+  push:
+    branches: [main, master]
   workflow_dispatch:
-    inputs:
-      site_url:
-        description: 'Alamat aplikasi (harus berakhiran /)'
-        default: 'https://afhpartnertirtakencana-lab.github.io/new-tirta-kencana-pos/'
-        required: true
-      package_id:
-        description: 'ID aplikasi Android (jangan diubah setelah dipasang)'
-        default: 'com.tirtakencana.pos'
-        required: true
-
-permissions:
-  contents: write   # menyimpan keystore terenkripsi & membuat Release
 
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    env:
-      SITE_URL: ${{ github.event.inputs.site_url }}
-      PACKAGE_ID: ${{ github.event.inputs.package_id }}
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_ALIAS: tirta
     steps:
-      - name: Cek secret KEYSTORE_PASSWORD
-        run: |
-          if [ -z "$KEYSTORE_PASSWORD" ] || [ ${#KEYSTORE_PASSWORD} -lt 8 ]; then
-            echo "::error::Buat dulu secret bernama KEYSTORE_PASSWORD (minimal 8 karakter, catat baik-baik): Settings → Secrets and variables → Actions → New repository secret."
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
 
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: '17' }
+        with:
+          distribution: temurin
+          java-version: 17
 
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-
-      - name: Siapkan keystore (dibuat sekali, disimpan terenkripsi di repo)
+      - name: Pasang platform Android 35
         run: |
-          mkdir -p android-signing
-          if [ -f android-signing/keystore.enc ]; then
-            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in android-signing/keystore.enc -out android.keystore -pass env:KEYSTORE_PASSWORD \
-              || { echo "::error::Password salah atau keystore rusak. Pakai KEYSTORE_PASSWORD yang sama seperti saat pertama kali build."; exit 1; }
-            echo "Keystore lama dipakai."
-          else
-            keytool -genkeypair -v -keystore android.keystore -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" -dname "CN=Tirta Kencana, O=Tirta Kencana, C=ID"
-            openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in android.keystore -out android-signing/keystore.enc -pass env:KEYSTORE_PASSWORD
-            echo "NEW_KEYSTORE=1" >> "$GITHUB_ENV"
-          fi
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Buat proyek Android dari manifest PWA
-        run: |
-          mkdir -p tools && cd tools
-          npm init -y >/dev/null && npm i @bubblewrap/core@1.24.1 >/dev/null
-          cat > generate.js <<'JS'
-          const fs = require('fs'); const Color = require('color');
-          const { TwaManifest, TwaGenerator, ConsoleLog } = require('@bubblewrap/core');
-          (async () => {
-            const siteUrl = new URL(process.env.SITE_URL);
-            const manifestUrl = new URL('manifest.json', siteUrl);
-            const res = await fetch(manifestUrl);
-            if (!res.ok) throw new Error('Manifest tidak bisa diambil: ' + manifestUrl + ' (' + res.status + '). Pastikan situs sudah online dan alamatnya benar.');
-            const web = await res.json();
-            const m = TwaManifest.fromWebManifestJson(manifestUrl, web);
-            m.packageId = process.env.PACKAGE_ID;
-            m.name = 'Tirta Kencana POS';
-            m.launcherName = 'Tirta Kencana';
-            m.host = siteUrl.host;
-            m.startUrl = siteUrl.pathname.replace(/\/$/, '') + '/' + (web.start_url || './index.html').replace(/^\.\//, '');
-            m.appVersionCode = Number(process.env.VERSION_CODE);
-            m.appVersionName = '1.0.' + process.env.VERSION_CODE;
-            m.signingKey = { path: process.env.GITHUB_WORKSPACE + '/android.keystore', alias: process.env.KEY_ALIAS };
-            m.display = 'standalone'; m.orientation = 'default'; m.fallbackType = 'customtabs'; m.enableNotifications = false; m.minSdkVersion = 21;
-            m.themeColor = new Color('#00509E'); m.themeColorDark = new Color('#00509E');
-            m.navigationColor = new Color('#00509E'); m.navigationColorDark = new Color('#00509E');
-            m.backgroundColor = new Color('#010d1f');
-            fs.mkdirSync('../twa', { recursive: true });
-            await m.saveToFile('../twa/twa-manifest.json');
-            await new TwaGenerator().createTwaProject('../twa', m, new ConsoleLog('generate'));
-            console.log('OK', m.packageId, m.host, m.startUrl);
-          })().catch(e => { console.error(e); process.exit(1); });
-          JS
-          VERSION_CODE=${{ github.run_number }} node generate.js
+      - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build APK
-        working-directory: twa
+      - name: Build debug APK
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
-
-      - name: Tanda tangan APK
-        run: |
-          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          IN=$(ls twa/app/build/outputs/apk/release/*.apk | head -1)
-          "$BT/zipalign" -p -f 4 "$IN" aligned.apk
-          "$BT/apksigner" sign --ks android.keystore --ks-key-alias "$KEY_ALIAS" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD --out Tirta-Kencana-POS.apk aligned.apk
-          "$BT/apksigner" verify --print-certs Tirta-Kencana-POS.apk | head -3
-          FP=$(keytool -list -v -keystore android.keystore -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" | grep 'SHA256:' | head -1 | sed 's/.*SHA256: *//')
-          echo "FINGERPRINT=$FP" >> "$GITHUB_ENV"
-
-      - name: Simpan keystore terenkripsi (hanya build pertama)
-        if: env.NEW_KEYSTORE == '1'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add android-signing/keystore.enc
-          git commit -m "Simpan keystore Android (terenkripsi) [skip ci]"
-          git push
+          ./gradlew assembleDebug --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Tirta-Kencana-POS-apk
-          path: Tirta-Kencana-POS.apk
-
-      - name: Buat Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "apk-${{ github.run_number }}" Tirta-Kencana-POS.apk \
-            --title "APK #${{ github.run_number }}" --notes "Unduh Tirta-Kencana-POS.apk lalu pasang di tablet/HP."
-
-      - name: Ringkasan & assetlinks.json
-        run: |
-          HOSTONLY=$(echo "$SITE_URL" | sed -E 's#https?://([^/]+)/.*#\1#')
-          {
-            echo "## APK selesai"
-            echo "Unduh dari **Releases → apk-${{ github.run_number }}**."
-            echo
-            echo "### Agar tampil layar penuh (tanpa bar alamat)"
-            echo "Buat repo bernama \`${GITHUB_REPOSITORY_OWNER}.github.io\` berisi file \`.nojekyll\` (kosong) dan \`.well-known/assetlinks.json\` dengan isi:"
-            echo '```json'
-            echo "[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"android_app\",\"package_name\":\"$PACKAGE_ID\",\"sha256_cert_fingerprints\":[\"$FINGERPRINT\"]}}]"
-            echo '```'
-            echo "Sidik jari: \`$FINGERPRINT\` (alamat: https://$HOSTONLY/.well-known/assetlinks.json)"
-          } >> "$GITHUB_STEP_SUMMARY"
+          name: WinLauncher-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
